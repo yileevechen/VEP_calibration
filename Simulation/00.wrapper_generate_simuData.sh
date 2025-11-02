@@ -4,10 +4,10 @@
 #   bash 00.wrapper_generate_simuData.sh <working_directory> <cluster_number>
 
 # === Input arguments ===
-wd=$1   # working directory (e.g., /path/to/cluster_simu_analysis_AM_10302025)
+wd=$1   # working directory (e.g., /path/to/simulation_analysis)
 cln=$2  # cluster number
 alpha=$3 # pre-estimated prior
-dist=$4
+dist=$4 # VEP predictor tool name (e.g. AM/MP2/REVEL)
 
 if [ -z "$wd" ] || [ -z "$cln" ] || [ -z "$alpha" ] || [ -z "$dist" ]; then
     echo "Usage: bash 00.wrapper_generate_simuData.sh <working_directory> <cluster_number> <cluster_prior> <predictor type>"
