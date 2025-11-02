@@ -118,7 +118,7 @@ best_model = max(
     ["Beta", "TruncNorm"],
     key=lambda d: fit_params["PLP"][d]["ll"] + fit_params["BLB"][d]["ll"]
 )
-print(f"✅ Best-fit distribution for {args.dist_name}: {best_model}")
+print(f" Best-fit distribution for {args.dist_name}: {best_model}")
 
 # Save parameters
 with open(f"{args.outdir}/{args.dist_name}_fit_params.pkl", "wb") as f:
