@@ -91,8 +91,8 @@ Uses Step 02 metrics to select the best-performing calibration method, then:
    - Benign (B-side) 5%
 
 3. Produces final gene-level posterior files:
-   - *_oob_posterior_{best}.csv
-   - *_finalposterior_{best}.csv
+   - {gene}_{predictor}_oob_posterior_{best_calibration_model}.csv
+   - {gene}_{predictor}_finalposterior_{best_calibration_model}.csv
    - Diagnostic plots for publication
 
 
