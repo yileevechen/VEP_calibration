@@ -29,35 +29,6 @@ Supported calibration models:
 
 ---
 
-# ⭐ Mathematical Formulation
-
-Let:
-
-- \(x\) = prediction score  
-- \(y \in \{0,1\}\) = benign (0) or pathogenic (1)  
-- \(\pi\) = gene-specific prior  
-- \(f_P(x)\), \(f_B(x)\) = class-conditional densities  
-
-Posterior:
-
-\[
-\Pr(Y=1 \mid x) = \frac{f_P(x)\,\pi}{f_P(x)\,\pi + f_B(x)(1 - \pi)}.
-\]
-
-Bootstrap percentile envelopes:
-
-\[
-\hat{P}_{M,\text{P95}}(x) = \operatorname{Percentile}_{5}\left\{\hat{P}_{M}^{(1)}(x),\dots,\hat{P}_{M}^{(B)}(x)\right\}.
-\]
-
-Benign-side calibration:
-
-\[
-\hat{B}_M(x) = 1 - \hat{P}_M(1-x).
-\]
-
----
-
 # ⭐ Pipeline Steps
 
 ---
