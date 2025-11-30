@@ -24,7 +24,7 @@ Supported calibration models:
 - Beta mixture
 - Truncated normal mixture
 - Skew-normal mixture from MAVE calibration
-- MonoPostNN (monotonic posterior neural network), fully bootstrap OOB compliant
+- MonoPostNN (monotonic posterior neural network)
 
 ---
 
