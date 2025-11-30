@@ -10,8 +10,7 @@
 The pipeline:
 
 - Generates simulation data  
-- Runs local posterior calibration  
-- Runs all non-local calibration models  
+- Runs local and other post-hoc calibration  
 - Performs bootstrap-based uncertainty quantification  
 - Produces final gene-specific posterior probabilities used for ACMG/AMP PP3/BP4 evidence code assignment.
 
