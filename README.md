@@ -1,7 +1,5 @@
 # `calib_pipeline`
 ### Single-Gene & Cluster-Aware Calibration Framework for Variant Effect Prediction  
-**Author:** Yile Chen  
-**Lab:** Pejaver Lab, IGVF Consortium  
 
 ---
 
