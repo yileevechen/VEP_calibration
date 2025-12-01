@@ -4,6 +4,17 @@
 ---
 
 # ⭐ Overview
+flowchart TD
+
+    A00[Step 00: Simulation Data Generation<br/>calib_step00.py<br/><br/>• Generate gene×predictor simulation data<br/>• Labeled + unlabeled sets<br/>• True posterior<br/>• Store .pkl files] 
+
+    A01[Step 01: Run Calibration Models<br/>calib_step01.py<br/><br/>• Run all models:<br/>  - Local<br/>  - Platt / Weighted-Platt<br/>  - Isotonic / SmoothIso<br/>  - Beta / BetaMixture<br/>  - TruncNorm<br/>  - MixSkewNorm<br/>  - SplineCalib<br/>  - MonoPostNN<br/>• Output per-method calibrated posteriors]
+
+    A02[Step 02: Metric Computation<br/>calib_step02.py<br/><br/>• Compare each method to true posterior<br/>• Compute metrics:<br/>  - Misestimation<br/>  - PP3/BP4 errors<br/>  - Percentile errors<br/>  - Combined ranks<br/>• Output *_combined.csv files]
+
+    A03[Step 03: Final Calibration<br/>calib_step03.py<br/><br/>• Select best calibration method<br/>• 1000 bootstrap OOB posteriors<br/>• MonoPostNN OOB bootstrap<br/>• Compute P95/P50/B95/B50 envelopes<br/>• Generate final posterior curves & plots]
+
+    A00 --> A01 --> A02 --> A03
 
 `calib_pipeline` implements a four-stage calibration workflow for gene-specific and cluster-aware posterior probability estimation of variant pathogenicity scores (e.g., AlphaMissense, REVEL, MutPred2).
 
