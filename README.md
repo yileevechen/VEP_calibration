@@ -104,7 +104,7 @@ python -m calib_pipeline.calib_step03 ARRAY_IDX
 
 # ⭐ Environment
 Install:
-``````bash
+```bash
 conda env create -f environment.yml
 conda activate calibrate
 ```
