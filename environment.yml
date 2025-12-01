@@ -1,0 +1,13 @@
+name: calibrate
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - pytorch
+  - matplotlib
+  - pip:
+      - betacal
+      - ml-insights
+      - jsonpickle
