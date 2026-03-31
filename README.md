@@ -1,5 +1,5 @@
 # `calib_pipeline`
-### Single-Gene & Cluster-Aware Calibration Framework for Variant Effect Prediction  
+### Gene-specific & Domain-aggregate Calibration Framework for Variant Effect Prediction  
 
 ---
 
