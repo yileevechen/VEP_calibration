@@ -101,7 +101,7 @@ def run_calibration(
             [
                 "--seed", str(seed),
                 "--predictor", predictor,
-                "--clustn", gene,
+                "--gene", gene,
                 "--pnratio_calibrate", str(pnratio_calibrate),
                 "--pnratio_test", str(pnratio_test),
                 "--alpha", str(alpha),
@@ -119,7 +119,7 @@ def run_calibration(
         [
             "--seed", str(seed),
             "--predictor", predictor,
-            "--clustn", gene,
+            "--gene", gene,
             "--pnratio_calibrate", str(pnratio_calibrate),
             "--pnratio_test", str(pnratio_test),
             "--alpha", str(alpha),
