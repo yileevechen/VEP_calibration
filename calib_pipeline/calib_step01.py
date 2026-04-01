@@ -6,23 +6,6 @@ from statistics import median
 
 
 # ---------------------------------------------------------------------
-# Constants / paths
-# ---------------------------------------------------------------------
-
-BASE_DIR = (
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-    "calibrationexp-main/single_gene_calibration_pipeline"
-)
-
-GENE_SEED_LIST = os.path.join(BASE_DIR, "01.gene_seed_AM_MP2.list")
-
-PRIOR_BASE = (
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-    "calibrationexp-main/calib_decision_tree/inheritance_analysis/prior_gnomad"
-)
-
-
-# ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
 
@@ -37,7 +20,7 @@ def _read_line_from_file(path: str, idx: int) -> str:
 
 def _parse_sim_info(sim_info_path: str):
     """
-    Parse new{gene}_{dist}_SimuInfo.txt and return (pnr, nsamp, method).
+    Parse {gene}_{predictor}_SimuInfo.txt and return (pnr, nsamp, method).
     Expected lines contain 'pnr', 'nsamp', 'method' as 'key:value'.
     """
     pnr = None
@@ -88,21 +71,6 @@ def _read_priors_from_file(path: str):
 
     return vals
 
-
-def _compute_median_prior(gene: str) -> float:
-    """
-    Compute median prior for a gene from cluster_gnomad.res_btstrap.txt.
-    """
-    prior_file = os.path.join(
-        PRIOR_BASE,
-        gene,
-        "uniboot_rus_pca_notfiltmp2train",
-        "cluster_gnomad.res_btstrap.txt",
-    )
-    vals = _read_priors_from_file(prior_file)
-    return float(median(vals))
-
-
 def _run_python_module(module: str, args: list[str]):
     """
     Convenience wrapper for calling: python -m <module> <args...>
@@ -112,139 +80,113 @@ def _run_python_module(module: str, args: list[str]):
     print(f"[RUN] {' '.join(str(c) for c in cmd)}")
     subprocess.run(cmd, check=True)
 
-
-# ---------------------------------------------------------------------
-# Main per-index logic
-# ---------------------------------------------------------------------
-
-def run_calibration_step_for_index(array_idx: int) -> None:
+def run_calibration(
+    gene: str,
+    predictor: str,
+    base_dir: str,
+    alpha: float,
+    seed: int,
+    n_test: int = 1000,
+):
     """
-    For a given ARRAY_IDX:
-      1. Look up (gene, dist, seed) from 01.gene_seed_AM_MP2.list
-      2. Read SimuInfo for that gene/dist
-      3. Compute alpha from prior file
-      4. Run local calibration *unless* local B95 output already exists
-      5. Run other calibration
-    """
-    # --- 1. Parse gene/dist/seed from list file ---
-    line = _read_line_from_file(GENE_SEED_LIST, array_idx)
-    # Expect: gene dist seed
-    parts = line.split()
-    if len(parts) < 3:
-        raise ValueError(
-            f"Line {array_idx} in {GENE_SEED_LIST} does not have 3 fields: '{line}'"
-        )
-    gene, dist, seed_str = parts[0], parts[1], parts[2]
-    seed = int(seed_str)
+    Run calibration using outputs from step00.
 
-    # --- 2. SimuInfo file: pnr, nsamp, method ---
-    gene_dir = os.path.join(BASE_DIR, gene)
-    sim_info_path = os.path.join(gene_dir, f"new{gene}_{dist}_SimuInfo.txt")
+    Inputs:
+      - gene
+      - predictor
+      - base_dir (user-provided output dir)
+      - alpha (user-provided prior)
+      - seed
+    """
+
+    gene_dir = os.path.join(base_dir, gene)
+
+    # --- 1. Read SimuInfo ---
+    sim_info_path = os.path.join(
+        gene_dir, f"{gene}_{predictor}_SimuInfo.txt"
+    )
     if not os.path.exists(sim_info_path):
         raise FileNotFoundError(f"SimuInfo file not found: {sim_info_path}")
 
     pnratio_calibrate, n_calibrate, method = _parse_sim_info(sim_info_path)
-    pnratio_test = pnratio_calibrate  # same as in your bash wrapper
-    n_test = 1000
+    pnratio_test = pnratio_calibrate
 
-    # --- 3. Compute alpha (median prior) ---
-    alpha = _compute_median_prior(gene)
-    print(f"Median prior for {gene} = {alpha}")
+    print(f"[INFO] gene={gene}, predictor={predictor}, method={method}")
+    print(f"[INFO] alpha={alpha}, seed={seed}")
 
-    # --- 4. Build local-calibration output path and decide whether to skip ---
-    # local_calib.py and other_calib.py use:
-    #   outdir = os.path.join(outdir, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}")
-    # and file name pattern:
-    #   f"{dist}_simu_{method}{seed}_calib_outputs_B95.csv"
-    local_outdir = os.path.join(
-        gene_dir, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}"
+    # --- 2. Output directory (consistent with step00) ---
+    sim_outdir = os.path.join(
+        gene_dir,
+        f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}",
     )
+
+    # --- 3. Check local calibration output ---
     local_b95_path = os.path.join(
-        local_outdir, f"{dist}_simu_{method}{seed}_calib_outputs_B95.csv"
+        sim_outdir,
+        f"{predictor}_simu_{method}{seed}_calib_outputs_B95.csv",
     )
 
-    # --- 4a. Run local calibration if needed ---
+    # --- 4. Local calibration ---
     if os.path.exists(local_b95_path):
-        print(
-            f"[SKIP] Local calibration already exists for "
-            f"{gene} {dist} seed {seed} at:\n  {local_b95_path}"
-        )
+        print(f"[SKIP] Local calibration exists:\n  {local_b95_path}")
     else:
-        print(
-            f"[LOCAL] Running local calibration for {gene}, {dist}, seed {seed}"
-        )
+        print(f"[RUN] Local calibration: {gene}, {predictor}, seed={seed}")
         _run_python_module(
             "calib_pipeline.local_calib",
             [
-                "--seed",
-                str(seed),
-                "--dist",
-                dist,
-                "--clustn",
-                gene,
-                "--pnratio_calibrate",
-                str(pnratio_calibrate),
-                "--pnratio_test",
-                str(pnratio_test),
-                "--alpha",
-                str(alpha),
+                "--seed", str(seed),
+                "--predictor", predictor,
+                "--clustn", gene,
+                "--pnratio_calibrate", str(pnratio_calibrate),
+                "--pnratio_test", str(pnratio_test),
+                "--alpha", str(alpha),
                 f"--n_calibrate={n_calibrate}",
-                "--n_test=1000",
+                f"--n_test={n_test}",
                 f"--outdir={gene_dir}",
-                "--method",
-                method,
+                "--method", method,
             ],
         )
 
-    # --- 5. Always run other calibration (it has its own internal skip checks) ---
-    print(
-        f"[OTHER] Running other calibration for {gene}, {dist}, seed {seed}"
-    )
+    # --- 5. Other calibration ---
+    print(f"[RUN] Other calibration: {gene}, {predictor}, seed={seed}")
     _run_python_module(
         "calib_pipeline.other_calib",
         [
-            "--seed",
-            str(seed),
-            "--dist",
-            dist,
-            "--clustn",
-            gene,
-            "--pnratio_calibrate",
-            str(pnratio_calibrate),
-            "--pnratio_test",
-            str(pnratio_test),
-            "--alpha",
-            str(alpha),
+            "--seed", str(seed),
+            "--predictor", predictor,
+            "--clustn", gene,
+            "--pnratio_calibrate", str(pnratio_calibrate),
+            "--pnratio_test", str(pnratio_test),
+            "--alpha", str(alpha),
             f"--n_calibrate={n_calibrate}",
-            "--n_test=1000",
+            f"--n_test={n_test}",
             f"--outdir={gene_dir}",
-            "--method",
-            method,
+            "--method", method,
         ],
     )
 
-
-# ---------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------
-
 def main():
-    if len(sys.argv) != 2:
-        print(
-            "Usage: python -m calib_pipeline.calib_step01 <ARRAY_IDX>",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    import argparse
 
-    try:
-        array_idx = int(sys.argv[1])
-    except ValueError:
-        print("ARRAY_IDX must be an integer.", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Run calibration step (Step01).")
 
-    run_calibration_step_for_index(array_idx)
+    parser.add_argument("--gene", required=True)
+    parser.add_argument("--predictor", required=True)
+    parser.add_argument("--base_dir", required=True)
+    parser.add_argument("--alpha", type=float, required=True)
+    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--n_test", type=int, default=1000)
 
+    args = parser.parse_args()
+
+    run_calibration(
+        gene=args.gene,
+        predictor=args.predictor,
+        base_dir=args.base_dir,
+        alpha=args.alpha,
+        seed=args.seed,
+        n_test=args.n_test,
+    )
 
 if __name__ == "__main__":
     main()
-
