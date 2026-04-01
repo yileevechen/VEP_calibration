@@ -9,15 +9,6 @@ from statistics import median
 # Helpers
 # ---------------------------------------------------------------------
 
-def _read_line_from_file(path: str, idx: int) -> str:
-    """Return 1-based line `idx` from `path` (stripped)."""
-    with open(path, "r") as f:
-        for i, line in enumerate(f, start=1):
-            if i == idx:
-                return line.strip()
-    raise IndexError(f"File {path} has fewer than {idx} lines.")
-
-
 def _parse_sim_info(sim_info_path: str):
     """
     Parse {gene}_{predictor}_SimuInfo.txt and return (pnr, nsamp, method).
@@ -44,32 +35,6 @@ def _parse_sim_info(sim_info_path: str):
         raise ValueError(f"Missing pnr/nsamp/method in {sim_info_path}")
 
     return pnr, nsamp, method
-
-
-def _read_priors_from_file(path: str):
-    """
-    Return list of valid float priors parsed from 'The prior is: <num>' lines.
-    Skips malformed numbers like '0..07801725'.
-    """
-    if not os.path.exists(path):
-        raise FileNotFoundError(path)
-
-    with open(path, "r") as f:
-        txt = f.read()
-
-    raw_vals = re.findall(r"The prior is:\s*([0-9.]+)", txt)
-    vals = []
-    for s in raw_vals:
-        try:
-            vals.append(float(s))
-        except ValueError:
-            # skip malformed like "0..07801725"
-            continue
-
-    if not vals:
-        raise ValueError(f"No valid priors parsed from {path}")
-
-    return vals
 
 def _run_python_module(module: str, args: list[str]):
     """
