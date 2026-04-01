@@ -1,4 +1,3 @@
-\
 import os
 import sys
 import pickle
@@ -17,24 +16,17 @@ from skewt_scipy.skewt import skewt
 class GetBestFitConfig:
     """Configuration for best-fit distribution step."""
 
-    base_output_dir: str = (
-        "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-        "calibrationexp-main/prior_notfiltmp2train_calib_decision_tree"
-    )
+    outdir: str
     skip_if_recent_hours: float = 0.0
 
-    def labeled_file(self, gene: str, dist: str) -> str:
-        return os.path.join(self.base_output_dir, gene, f"{gene}_{dist}_labeled.txt")
+    def fit_params_pickle(self, gene: str, predictor: str) -> str:
+        return os.path.join(self.outdir, gene, f"{gene}_{predictor}_fit_params.pkl")
 
-    def fit_params_pickle(self, gene: str, dist: str) -> str:
-        return os.path.join(self.base_output_dir, gene, f"{gene}_{dist}_fit_params.pkl")
+    def simu_info_file(self, gene: str, predictor: str) -> str:
+        return os.path.join(self.outdir, gene, f"{gene}_{predictor}_SimuInfo.txt")
 
-    def simu_info_file(self, gene: str, dist: str) -> str:
-        return os.path.join(self.base_output_dir, gene, f"new{gene}_{dist}_SimuInfo.txt")
-
-    def fig_file(self, gene: str, dist: str) -> str:
-        return os.path.join(self.base_output_dir, gene, f"{gene}_{dist}_fit_dist_normalized.png")
-
+    def fig_file(self, gene: str, predictor: str) -> str:
+        return os.path.join(self.outdir, gene, f"{gene}_{predictor}_fit_dist.png")
 
 def _is_file_recent(filepath: str, hours: float) -> bool:
     if hours <= 0:
@@ -366,9 +358,14 @@ def _select_best_method(fit_params: dict) -> str:
     return final_max_d
 
 
-def _write_outputs(gene: str, dist: str, cfg: GetBestFitConfig, fit_params: dict) -> str:
-    labfn = cfg.labeled_file(gene, dist)
-    labdat = pd.read_table(labfn, header=None)
+def _write_outputs(
+    gene: str,
+    predictor: str,
+    labeled_file: str,
+    cfg: GetBestFitConfig,
+    fit_params: dict,
+) -> str:
+    labdat = pd.read_table(labeled_file, header=None)
 
     n_calibrate = len(labdat)
     pnratio_calibrate = (labdat[1] == 1).sum() / len(labdat)
@@ -376,13 +373,15 @@ def _write_outputs(gene: str, dist: str, cfg: GetBestFitConfig, fit_params: dict
     method = _select_best_method(fit_params)
 
     print("__________________________________________________________________")
-    print(f"The best fit distribution for {dist} scores is {method}.")
+    print(f"The best fit distribution for {predictor} scores is {method}.")
     print("__________________________________________________________________")
 
-    with open(cfg.fit_params_pickle(gene, dist), "wb") as f:
+    os.makedirs(os.path.join(cfg.outdir, gene), exist_ok=True)
+
+    with open(cfg.fit_params_pickle(gene, predictor), "wb") as f:
         pickle.dump(fit_params, f)
 
-    with open(cfg.simu_info_file(gene, dist), "w") as f:
+    with open(cfg.simu_info_file(gene, predictor), "w") as f:
         f.write(f"pnr:{pnratio_calibrate}\n")
         f.write(f"nsamp:{n_calibrate}\n")
         f.write(f"method:{method}\n")
@@ -390,9 +389,14 @@ def _write_outputs(gene: str, dist: str, cfg: GetBestFitConfig, fit_params: dict
     return method
 
 
-def _make_figure(gene: str, dist: str, cfg: GetBestFitConfig, fit_params: dict) -> None:
-    labfn = cfg.labeled_file(gene, dist)
-    dat = pd.read_table(labfn, header=None)
+def _make_figure(
+    gene: str,
+    predictor: str,
+    labeled_file: str,
+    cfg: GetBestFitConfig,
+    fit_params: dict,
+) -> None:
+    dat = pd.read_table(labeled_file, header=None)
     blbrev = dat[dat[1] == 0][0]
     plprev = dat[dat[1] == 1][0]
 
@@ -534,54 +538,80 @@ def _make_figure(gene: str, dist: str, cfg: GetBestFitConfig, fit_params: dict) 
     )
 
     plt.title(f"{gene} P/B Distributions with Fitted Models")
-    plt.xlabel(f"{dist} Score")
+    plt.xlabel(f"{predictor} Score")
     plt.ylabel("Density")
     plt.legend(loc="best", fontsize=10)
     plt.tight_layout()
-    plt.savefig(cfg.fig_file(gene, dist), dpi=150)
+    plt.savefig(cfg.fig_file(gene, predictor), dpi=150)
     plt.close()
 
 
 def fit_best_distribution(
     gene: str,
-    dist: str,
-    cfg: GetBestFitConfig | None = None,
+    predictor: str,
+    labeled_file: str,
+    cfg: GetBestFitConfig,
     make_plot: bool = False,
 ) -> dict:
-    if cfg is None:
-        cfg = GetBestFitConfig()
+    if not os.path.exists(labeled_file):
+        raise FileNotFoundError(f"Labeled file not found: {labeled_file}")
 
-    labfn = cfg.labeled_file(gene, dist)
-    if not os.path.exists(labfn):
-        raise FileNotFoundError(f"Labeled file not found: {labfn}")
+    base_out = os.path.join(cfg.outdir, gene)
+    os.makedirs(base_out, exist_ok=True)
 
-    figfn = cfg.fig_file(gene, dist)
+    figfn = cfg.fig_file(gene, predictor)
     if make_plot and _is_file_recent(figfn, cfg.skip_if_recent_hours):
-        print(f"{figfn} is recent; skipping recomputation as per config.")
+        print(f"{figfn} is recent; skipping recomputation.")
         return {}
 
-    fit_params = _fit_distributions(labfn)
-    method = _write_outputs(gene, dist, cfg, fit_params)
+    # --- Core fitting ---
+    fit_params = _fit_distributions(labeled_file)
 
-    print(f"Selected method for {gene}, {dist}: {method}")
+    # --- Outputs ---
+    method = _write_outputs(
+        gene=gene,
+        predictor=predictor,
+        labeled_file=labeled_file,
+        cfg=cfg,
+        fit_params=fit_params,
+    )
+
+    print(f"Selected method for {gene}, {predictor}: {method}")
 
     if make_plot:
-        _make_figure(gene, dist, cfg, fit_params)
+        _make_figure(
+            gene=gene,
+            predictor=predictor,
+            labeled_file=labeled_file,
+            cfg=cfg,
+            fit_params=fit_params,
+        )
 
     return fit_params
 
-
 def main():
-    if len(sys.argv) != 4:
-        sys.exit("Usage: python -m calib_pipeline.get_best_fit GENE yes|no DIST")
+    import argparse
 
-    gene = sys.argv[1]
-    get_plt = sys.argv[2].lower()
-    dist = sys.argv[3]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gene", required=True)
+    parser.add_argument("--predictor", required=True)
+    parser.add_argument("--labeled", required=True)
+    parser.add_argument("--outdir", required=True)
+    parser.add_argument("--plot", action="store_true")
 
-    make_plot = get_plt == "yes"
-    fit_best_distribution(gene, dist, make_plot=make_plot)
+    args = parser.parse_args()
+
+    cfg = GetBestFitConfig(outdir=args.outdir)
+
+    fit_best_distribution(
+        gene=args.gene,
+        predictor=args.predictor,
+        labeled_file=args.labeled,
+        cfg=cfg,
+        make_plot=args.plot,
+    )
 
 
 if __name__ == "__main__":
     main()
+
