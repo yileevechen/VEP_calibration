@@ -1,29 +1,40 @@
 #!/usr/bin/env python
-import os, sys
+import os
+import sys
 import pickle
 import bisect
 import numpy as np
 import pandas as pd
 import argparse
 
-TAV_BASE = "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/calib_decision_tree/clingen-svi-comp_calibration_python-master"
-if TAV_BASE not in sys.path:
-    sys.path.append(TAV_BASE)
+# ---------------------------------------------------------------------
+# Ensure GitHub repo is available
+# ---------------------------------------------------------------------
+GITHUB_REPO_DIR = "/tmp/clingen-svi-comp_calibration_python"
+REPO_URL = "https://github.com/pejaverlab/clingen-svi-comp_calibration_python"
 
-from Tavtigian.tavtigianutils import (
-    get_tavtigian_c,
-    get_tavtigian_thresholds,
-    get_tavtigian_plr,
-)
+if not os.path.exists(GITHUB_REPO_DIR):
+    # Clone repo if not present
+    print(f"[INFO] Cloning repo from {REPO_URL} to {GITHUB_REPO_DIR} ...")
+    import subprocess
+    subprocess.run(["git", "clone", REPO_URL, GITHUB_REPO_DIR], check=True)
+
+if GITHUB_REPO_DIR not in sys.path:
+    sys.path.append(GITHUB_REPO_DIR)
+
+# Now import
+from Tavtigian.tavtigianutils import get_tavtigian_c, get_tavtigian_thresholds, get_tavtigian_plr
 from LocalCalibration.gaussiansmoothing import *
 from Tavtigian.Tavtigian import LocalCalibrateThresholdComputation
 from LocalCalibration.LocalCalibration import LocalCalibration
 
 
+# ---------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------
 def _lininterpol(x, x1, x2, y1, y2):
     y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
     return y
-
 
 def _get_prob_linear_interp(s, scores, posterior):
     ix = bisect.bisect_left(scores, s)
@@ -39,10 +50,8 @@ def _get_prob_linear_interp(s, scores, posterior):
         return 1.0
     return ans
 
-
 def _get_probs_linear_interp(scores, thresholds, posteriors):
     return np.array([_get_prob_linear_interp(e, thresholds, posteriors) for e in scores])
-
 
 def _calibrate_model(scores, labels, pudata, alpha, win_frac, gnfrac):
     scores = np.asarray(scores).flatten()
@@ -107,8 +116,11 @@ def _local_calibration(
     )
 
 
+# ---------------------------------------------------------------------
+# Main function
+# ---------------------------------------------------------------------
 def run_local_calibration(
-    dist,
+    predictor,
     method,
     seed_raw,
     outdir_base,
@@ -119,36 +131,21 @@ def run_local_calibration(
     pnratio_calibrate,
     pnratio_test,
 ):
-    """
-    Run local calibration for a single (dist, gene, method, seed).
-
-    Parameters mirror the CLI in calib_step01:
-      dist               : predictor name (e.g. 'AM', 'REVEL')
-      method             : simulation method tag (e.g. 'TruncSkewt')
-      seed_raw           : integer seed (unscaled, as passed from calib_step01)
-      outdir_base        : base gene directory (e.g. .../single_gene_calibration_pipeline/ABCD1)
-      alpha              : prior
-      n_calibrate        : Ntrain
-      n_test             : Ntest (currently not used in loading, but kept for consistency)
-      gene               : gene name
-      pnratio_calibrate  : calibration P/(P+B) ratio (unused in this script, but passed for completeness)
-      pnratio_test       : test P/(P+B) ratio (unused here)
-    """
     seed_scaled = int(seed_raw) * 828
     tag = seed_scaled / 828.0
 
-    simdir = os.path.join(outdir_base, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}")
+    simdir = os.path.join(outdir_base, f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}")
     os.makedirs(simdir, exist_ok=True)
 
-    base_fname = f"{dist}_simu_{method}{tag}"
+    base_fname = f"{predictor}_simu_{method}{tag}"
     out_csv = os.path.join(simdir, base_fname + "_calib_outputs.csv")
     out_p95 = os.path.join(simdir, base_fname + "_calib_outputs_P95.csv")
     out_b95 = os.path.join(simdir, base_fname + "_calib_outputs_B95.csv")
     out_p50 = os.path.join(simdir, base_fname + "_calib_outputs_P50.csv")
     out_b50 = os.path.join(simdir, base_fname + "_calib_outputs_B50.csv")
 
-    if os.path.exists(out_b95) and os.path.exists(out_p95) and os.path.exists(out_csv):
-        print(f"[Local] Outputs exist for {gene}, {dist}, seed {seed_raw}. Skipping.")
+    if all(os.path.exists(f) for f in [out_csv, out_p95, out_b95]):
+        print(f"[Local] Outputs exist for {gene}, {predictor}, seed {seed_raw}. Skipping.")
         return
 
     pkl_path = os.path.join(simdir, base_fname + ".pkl")
@@ -163,15 +160,6 @@ def run_local_calibration(
     y_test_pred_prob = np.asarray(simudat["y_test_pred_prob"]).flatten()
     y_unlabelled_pred_prob = np.asarray(simudat["y_unlabelled_pred_prob"]).flatten()
     true_posterior = np.asarray(simudat["true_posterior"]).flatten()
-
-    print(
-        f"[Local] y_calibrate_pred_prob: {y_calibrate_pred_prob.shape}, "
-        f"first 5: {y_calibrate_pred_prob[:5]}"
-    )
-    print(
-        f"[Local] y_calibrate: {y_calibrate.shape}, "
-        f"first 5: {y_calibrate[:5]}"
-    )
 
     local_mean = {}
     local_p5 = {}
@@ -226,46 +214,34 @@ def run_local_calibration(
     df_b50["True"] = 1 - np.flip(true_posterior)
     df_b50.to_csv(out_b50, index=False)
 
-    print(f"[Local] Saved outputs for {gene}, {dist}, seed {seed_raw} to {simdir}")
+    print(f"[Local] Saved outputs for {gene}, {predictor}, seed {seed_raw} to {simdir}")
 
 
 # ---------------------------------------------------------------------
-# CLI / main entrypoint
+# CLI
 # ---------------------------------------------------------------------
-
 def _build_argparser():
     parser = argparse.ArgumentParser(
         description="Run local calibration for a single gene/predictor/method/seed."
     )
-    parser.add_argument("--seed", type=int, required=True,
-                        help="Raw seed index (will be scaled by 828 inside).")
-    parser.add_argument("--dist", type=str, required=True,
-                        help="Predictor name (e.g. AM, REVEL, MP2).")
-    parser.add_argument("--clustn", dest="gene", type=str, required=True,
-                        help="Gene name (clustn argument from calib_step01).")
-    parser.add_argument("--pnratio_calibrate", type=float, required=True,
-                        help="P:(P+B) ratio in calibration set.")
-    parser.add_argument("--pnratio_test", type=float, required=True,
-                        help="P:(P+B) ratio in test set.")
-    parser.add_argument("--alpha", type=float, required=True,
-                        help="Gene-specific prior (alpha).")
-    parser.add_argument("--n_calibrate", type=int, required=True,
-                        help="Number of calibration samples (Ntrain).")
-    parser.add_argument("--n_test", type=int, required=True,
-                        help="Number of test samples (Ntest).")
-    parser.add_argument("--outdir", type=str, required=True,
-                        help="Base output directory for this gene.")
-    parser.add_argument("--method", type=str, required=True,
-                        help="Simulation method tag (e.g. TruncSkewt).")
+    parser.add_argument("--seed", type=int, required=True, help="Raw seed index")
+    parser.add_argument("--predictor", type=str, required=True, help="Predictor name (e.g. AM, REVEL, MP2)")
+    parser.add_argument("--gene", type=str, required=True, help="Gene name")
+    parser.add_argument("--pnratio_calibrate", type=float, required=True)
+    parser.add_argument("--pnratio_test", type=float, required=True)
+    parser.add_argument("--alpha", type=float, required=True)
+    parser.add_argument("--n_calibrate", type=int, required=True)
+    parser.add_argument("--n_test", type=int, required=True)
+    parser.add_argument("--outdir", type=str, required=True, help="Base output directory")
+    parser.add_argument("--method", type=str, required=True, help="Simulation method tag")
     return parser
-
 
 def main():
     parser = _build_argparser()
     args = parser.parse_args()
 
     run_local_calibration(
-        dist=args.dist,
+        predictor=args.predictor,
         method=args.method,
         seed_raw=args.seed,
         outdir_base=args.outdir,
@@ -276,7 +252,6 @@ def main():
         pnratio_calibrate=args.pnratio_calibrate,
         pnratio_test=args.pnratio_test,
     )
-
 
 if __name__ == "__main__":
     main()
