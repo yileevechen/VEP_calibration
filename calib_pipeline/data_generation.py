@@ -6,20 +6,25 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-# allow access to the local simulation_strategy repo
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/simulation_strategy"
-)
-
-from GaussianMixDataGenerator.data.datagen import BetaDG
-from GaussianMixDataGenerator.data.datagen import MVNormalMixDG as GMM
-from GaussianMixDataGenerator.data.skewt_datagen import TruncSkewTDG
-from GaussianMixDataGenerator.data.skewt_beta_datagen import (
-    Beta_TruncSkewTDG,
-    TruncSkewT_TruncCauchyDG,
-    TruncCauchy_TruncSkewTDG,
-    TruncCauchyDG,
-)
+try:
+    from GaussianMixDataGenerator.data.datagen import BetaDG
+    from GaussianMixDataGenerator.data.datagen import MVNormalMixDG as GMM
+    from GaussianMixDataGenerator.data.skewt_datagen import TruncSkewTDG
+    from GaussianMixDataGenerator.data.skewt_beta_datagen import (
+        Beta_TruncSkewTDG,
+        TruncSkewT_TruncCauchyDG,
+        TruncCauchy_TruncSkewTDG,
+        TruncCauchyDG,
+    )
+except ImportError as e:
+    raise ImportError(
+        "Missing dependency: GaussianMixDataGenerator.\n\n"
+        "Install it using:\n"
+        "  pip install git+https://github.com/shajain/GaussianMixDataGenerator.git\n\n"
+        "Or clone manually:\n"
+        "  git clone https://github.com/shajain/GaussianMixDataGenerator.git\n"
+        "  pip install -e GaussianMixDataGenerator\n"
+    ) from e
 
 
 @dataclass
