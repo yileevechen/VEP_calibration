@@ -25,28 +25,17 @@ from GaussianMixDataGenerator.data.skewt_beta_datagen import (
 
 @dataclass
 class DataGenConfig:
-    """Configuration for simulation data generation."""
+    outdir: str 
 
-    base_output_dir: str = (
-        "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-        "calibrationexp-main/prior_notfiltmp2train_calib_decision_tree"
-    )
+def _fit_params_path(cfg: DataGenConfig, gene: str, predictor: str) -> str:
+    return os.path.join(cfg.outdir, gene, f"{gene}_{predictor}_fit_params.pkl")
 
-
-def _fit_params_path(cfg: DataGenConfig, gene: str, dist: str) -> str:
-    return os.path.join(cfg.base_output_dir, gene, f"{gene}_{dist}_fit_params.pkl")
+def _load_fit_params(cfg: DataGenConfig, gene: str, predictor: str) -> dict:
+    parafn = _fit_params_path(cfg, gene, predictor)
 
 
-def _load_fit_params(cfg: DataGenConfig, gene: str, dist: str) -> dict:
-    parafn = _fit_params_path(cfg, gene, dist)
-    if not os.path.exists(parafn):
-        raise FileNotFoundError(f"Fit-params pickle not found: {parafn}")
-    with open(parafn, "rb") as f:
-        return pickle.load(f)
-
-
-def buildSkewTBetaMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildSkewTBetaMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     alpha_pos = [fit_para["PLP"]["Beta"]["params"][0]]
     beta_pos = [fit_para["PLP"]["Beta"]["params"][1]]
 
@@ -62,8 +51,8 @@ def buildSkewTBetaMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo:
     )
 
 
-def buildBetaCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildBetaCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     alpha_pos = [fit_para["PLP"]["Beta"]["params"][0]]
     beta_pos = [fit_para["PLP"]["Beta"]["params"][1]]
 
@@ -80,8 +69,8 @@ def buildBetaCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo
     )
 
 
-def buildSkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildSkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     a_pos, loc_pos, scale_pos, rng_pos = fit_para["PLP"]["TruncSkewCauchy"]["params"]  # noqa: F841
     a_neg, loc_neg, scale_neg, rng_neg = fit_para["BLB"]["TruncSkewCauchy"]["params"]  # noqa: F841
 
@@ -97,8 +86,8 @@ def buildSkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo
     )
 
 
-def buildSkewCauchy_SkewTMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildSkewCauchy_SkewTMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     a_pos, loc_pos, scale_pos, rng_pos = fit_para["PLP"]["TruncSkewCauchy"]["params"]  # noqa: F841
     a_neg, df_neg, loc_neg, scale_neg, rng_neg = fit_para["BLB"]["TruncSkewt"]["params"]  # noqa: F841
     df_pos = 1
@@ -113,8 +102,8 @@ def buildSkewCauchy_SkewTMixDataGenerator(cfg: DataGenConfig, gene: str, dist: s
     )
 
 
-def buildSkewT_SkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildSkewT_SkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     a_pos, df_pos, loc_pos, scale_pos, rng_pos = fit_para["PLP"]["TruncSkewt"]["params"]  # noqa: F841
     a_neg, loc_neg, scale_neg, rng_neg = fit_para["BLB"]["TruncSkewCauchy"]["params"]  # noqa: F841
     df_neg = 1
@@ -129,8 +118,8 @@ def buildSkewT_SkewCauchyMixDataGenerator(cfg: DataGenConfig, gene: str, dist: s
     )
 
 
-def buildBetaMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildBetaMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     alpha_pos = [fit_para["PLP"]["Beta"]["params"][0]]
     beta_pos = [fit_para["PLP"]["Beta"]["params"][1]]
     alpha_neg = [fit_para["BLB"]["Beta"]["params"][0]]
@@ -141,8 +130,8 @@ def buildBetaMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str):
     return BetaDG(alpha_pos, beta_pos, p_pos, alpha_neg, beta_neg, p_neg, alpha)
 
 
-def buildGaussianMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildGaussianMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     pos_params = fit_para["PLP"]["TruncNorm"]["params"]
     neg_params = fit_para["BLB"]["TruncNorm"]["params"]
     p_pos = [1.0]
@@ -153,8 +142,8 @@ def buildGaussianMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: 
     return GMM(pos_params, p_pos, neg_params, p_neg, alpha)
 
 
-def buildSkewtMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: float, hi: float):
-    fit_para = _load_fit_params(cfg, gene, dist)
+def buildSkewtMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
+    fit_para = _load_fit_params(cfg, gene, predictor)
     a_pos, df_pos, loc_pos, scale_pos, rng_pos = fit_para["PLP"]["TruncSkewt"]["params"]  # noqa: F841
     a_neg, df_neg, loc_neg, scale_neg, rng_neg = fit_para["BLB"]["TruncSkewt"]["params"]  # noqa: F841
     p_pos = [1.0]
@@ -169,7 +158,7 @@ def buildSkewtMixDataGenerator(cfg: DataGenConfig, gene: str, dist: str, lo: flo
 
 def generate_simulation_data(
     gene: str,
-    dist: str,
+    predictor: str,
     method: str,
     seed_index: int,
     outdir: str,
@@ -181,38 +170,34 @@ def generate_simulation_data(
     cfg: DataGenConfig | None = None,
 ) -> str:
     if cfg is None:
-        cfg = DataGenConfig()
-
+        raise ValueError("cfg must be provided with outdir")
+    
     seed = seed_index * 828
     np.random.seed(seed)
-
-    labfn = os.path.join(outdir, f"{gene}_{dist}_labeled.txt")
-    if not os.path.exists(labfn):
-        raise FileNotFoundError(f"Labeled data file not found: {labfn}")
 
     labdat = pd.read_table(labfn, header=None)  # noqa: F841
     datlo = 0.0
     dathi = 1.0
 
-    sim_outdir = os.path.join(outdir, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}")
+    sim_outdir = os.path.join(outdir, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}")
     os.makedirs(sim_outdir, exist_ok=True)
 
     if method == "BetaSkewt":
-        gmm = buildSkewTBetaMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildSkewTBetaMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "TruncSkewCauchy":
-        gmm = buildSkewCauchyMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildSkewCauchyMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "CauchySkewt":
-        gmm = buildSkewCauchy_SkewTMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildSkewCauchy_SkewTMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "SkewtCauchy":
-        gmm = buildSkewT_SkewCauchyMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildSkewT_SkewCauchyMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "Beta":
-        gmm = buildBetaMixDataGenerator(cfg, gene=gene, dist=dist)
+        gmm = buildBetaMixDataGenerator(cfg, gene=gene, predictor=predictor)
     elif method == "TruncNorm":
-        gmm = buildGaussianMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildGaussianMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "TruncSkewt":
-        gmm = buildSkewtMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildSkewtMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     elif method == "BetaCauchy":
-        gmm = buildBetaCauchyMixDataGenerator(cfg, gene=gene, dist=dist, lo=datlo, hi=dathi)
+        gmm = buildBetaCauchyMixDataGenerator(cfg, gene=gene, predictor=predictor, lo=datlo, hi=dathi)
     else:
         raise ValueError(f"Unknown method: {method}")
 
@@ -237,7 +222,7 @@ def generate_simulation_data(
     y_test_pred_prob = X_test
     y_unlabelled_pred_prob = xu
 
-    fname = os.path.join(sim_outdir, f"{dist}_simu_{method}{seed/828}.pkl")
+    fname = os.path.join(sim_outdir, f"{gene}_{predictor}_simu_{method}_seed{seed_index}.pkl")
 
     simudat = {
         "y_calibrate_pred_prob": y_calibrate_pred_prob,
@@ -261,23 +246,23 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Generate simulation data for one gene/score/method.")
-    parser.add_argument("--dist", type=str, required=True)
+    parser.add_argument("--predictor", type=str, required=True)
+    parser.add_argument("--gene", type=str, required=True)
     parser.add_argument("--method", type=str, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--outdir", type=str, required=True)
     parser.add_argument("--alpha", type=float, required=True)
     parser.add_argument("--n_calibrate", type=int, required=True)
     parser.add_argument("--n_test", type=int, required=True)
-    parser.add_argument("--clustn", type=str, required=True)
     parser.add_argument("--pnratio_calibrate", type=float, required=True)
     parser.add_argument("--pnratio_test", type=float, required=True)
 
     args = parser.parse_args()
-    cfg = DataGenConfig()
+    cfg = DataGenConfig(outdir=args.outdir)
 
     generate_simulation_data(
-        gene=args.clustn,
-        dist=args.dist,
+        gene=args.gene,
+        predictor=args.predictor,
         method=args.method,
         seed_index=args.seed,
         outdir=args.outdir,
