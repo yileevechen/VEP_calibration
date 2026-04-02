@@ -12,7 +12,7 @@ source activate calibrate
 python -m calib_pipeline.calib_step00 \
     --gene BRCA1 \
     --predictor REVEL \
-    --prior 0.12 \
+    --prior 0.072 \
     --outdir /path/to/output \
     --labeled /data/BRCA1_REVEL_labeled.txt \
     --unlabeled /data/BRCA1_REVEL_unlabeled.txt
