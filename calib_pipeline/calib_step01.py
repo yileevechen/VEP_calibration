@@ -82,7 +82,7 @@ def run_calibration(
     # --- 2. Output directory (consistent with step00) ---
     sim_outdir = os.path.join(
         gene_dir,
-        f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}",
+        f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}",
     )
 
     # --- 3. Check local calibration output ---
