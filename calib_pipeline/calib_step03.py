@@ -17,17 +17,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.isotonic import IsotonicRegression
 
 import torch
-
-# -------------------------------------------------------------------
-# Imports for Tavtigian + LocalCalibration + MonoPostNN
-# -------------------------------------------------------------------
-TAV_BASE = (
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-    "calibrationexp-main/calib_decision_tree/clingen-svi-comp_calibration_python-master"
-)
-if TAV_BASE not in sys.path:
-    sys.path.append(TAV_BASE)
-
 from Tavtigian.tavtigianutils import (
     get_tavtigian_c,
     get_tavtigian_thresholds,
@@ -36,18 +25,9 @@ from Tavtigian.tavtigianutils import (
 from calib_pipeline.local_calib import _get_prob_linear_interp
 from Tavtigian.Tavtigian import LocalCalibrateThresholdComputation
 from LocalCalibration.LocalCalibration import LocalCalibration
-
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/PosteriorCalibration-master"
-)
 from MonotonicPosterior.computePosterior_fast import computePosteriorFromEnsemble
-
 import ml_insights as mli
 from betacal import BetaCalibration
-
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/mave_calibration-master"
-)
 from mave_calibration.main import single_fit
 from mave_calibration.skew_normal.density_utils import joint_densities
 
@@ -57,9 +37,8 @@ _BOOT_GLOBALS = {}
 # how many cores to use for Pool
 N_PROCS = 16  # set to match your BSUB -n
 
-
 # -------------------------------------------------------------------
-# Small helpers that do NOT depend on gene/dist
+# Small helpers that do NOT depend on gene/predictor
 # -------------------------------------------------------------------
 def rm_monoincrease_transform(posterior):
     """Fix minor non-monotonic wiggles for posterior curves."""
@@ -556,34 +535,28 @@ def _monopost_oob_bootstrap(X_lab, y_lab, X_unlab, alpha,
 
 
 # -------------------------------------------------------------------
-# Core function: can be called from main() using ARRAY_IDX logic
+# Core function: can be called from main()
 # -------------------------------------------------------------------
-BASE_PATH = (
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-    "calibrationexp-main/single_gene_calibration_pipeline"
-)
-
-
-def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
+def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
     """
-    Final calibration for a single gene/dist:
+    Final calibration for a single gene/predictor:
       * selects best model (including Local)
       * runs bootstrap OOB calibration
       * writes OOB p95 CSV
       * fits one-time full posterior curve
       * plots posteriors + Tavtigian thresholds
     """
-    METRIC_DIR = f"{BASE_PATH}/{gene}/{dist}_{method}_calib_metric"
+    METRIC_DIR = f"{outdir}/{gene}/{predictor}_{method}_calib_metric"
 
     # Path to labeled / unlabeled ClinVar + gnomAD score files
-    labfn = f"{BASE_PATH}/{gene}/{gene}_{dist}_labeled.txt"
+    labfn = f"{outdir}/{gene}/{gene}_{predictor}_labeled.txt"
     labdat = pd.read_table(labfn, header=None)
 
-    unlabfn = f"{BASE_PATH}/{gene}/{gene}_{dist}_unlabeled.txt"
+    unlabfn = f"{outdir}/{gene}/{gene}_{predictor}_unlabeled.txt"
     unlabdat = pd.read_table(unlabfn, header=None)
 
-    # Log file for this gene/dist
-    logfn = f"{BASE_PATH}/{gene}/{gene}_specific_calibration_output_sequential_oob_p95.txt"
+    # Log file for this gene/predictor
+    logfn = f"{outdir}/{gene}/{gene}_specific_calibration_output_sequential_oob_p95.txt"
 
     # Tavtigian posterior thresholds
     c = get_tavtigian_c(alpha)
@@ -591,7 +564,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
 
     with open(logfn, "a") as f:
         f.write("\n__________________________________\n")
-        f.write(f"\n\n{gene} {dist} information:\n")
+        f.write(f"\n\n{gene} {predictor} information:\n")
         f.write(f"alpha: {alpha}; c: {c}\n")
         f.write(f"Post_p: {Post_p}, Post_b: {Post_b}\n")
 
@@ -741,7 +714,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
 
         with open(logfn, "a") as f:
             f.write(
-                f"\n~~~~~The final best calibration method for {dist}: "
+                f"\n~~~~~The final best calibration method for {predictor}: "
                 f"{best_method_all}.~~~~~\n"
             )
 
@@ -790,7 +763,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
             )
     else:
         # generic bootstrap using multiprocessing
-        B = 1000
+        B = 100
         seeds = list(range(B))
         lab_rows = []
         unlab_rows = []
@@ -804,7 +777,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
                 X_unlab_full,
                 best_model,
                 alpha,
-                pnrat,
+                pnr,
             ),
         ) as pool:
             start = time.time()
@@ -854,7 +827,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
         )
 
         oob_all = pd.concat([df_labeled, df_unlab], ignore_index=True)
-        out_csv = f"{BASE_PATH}/{gene}/{gene}_{dist}_oob_posterior_{best_model}.csv"
+        out_csv = f"{BASE_PATH}/{gene}/{gene}_{predictor}_oob_posterior_{best_model}.csv"
         oob_all.to_csv(out_csv, index=False)
 
         with open(logfn, "a") as f:
@@ -905,7 +878,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
                 X_test=X_grid,
                 X_unlabel=X_unlab_full_,
                 alpha=alpha,
-                pnrat=pnrat,
+                pnr=pnr,
             )
             return X_grid, full_post
 
@@ -954,16 +927,16 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
     ):
         ax11.axhline(lvl, linestyle=ls, color="steelblue")
 
-    ax11.set_xlabel(f"{dist} Score")
+    ax11.set_xlabel(f"{predictor} Score")
     ax11.set_ylabel("Posterior")
     ax11.set_ylim([min(0.975, Post_b[4] - 0.002), 1.001])
     ax11.legend(loc="best", fontsize=8)
 
-    if dist == "AM":
+    if predictor == "AM":
         old_threshb = [0.169, 0.099, 0.07, np.nan]
-    elif dist == "MP2":
+    elif predictor == "MP2":
         old_threshb = [0.391, 0.197, 0.031, 0.01]
-    elif dist == "REVEL":
+    elif predictor == "REVEL":
         old_threshb = [0.29, 0.183, 0.052, 0.016]
     else:
         old_threshb = [np.nan, np.nan, np.nan, np.nan]
@@ -1026,15 +999,15 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
     ax21.axhline(Post_p[2], linestyle="dashdot", color="r")
     ax21.axhline(Post_p[1], linestyle=(5, (10, 3)), color="r")
     ax21.axhline(Post_p[0], linestyle="solid", color="r")
-    ax21.set_xlabel(f"{dist} Score")
+    ax21.set_xlabel(f"{predictor} Score")
     ax21.set_ylabel("Posterior")
     ax21.legend(loc="best", fontsize=8)
 
-    if dist == "AM":
+    if predictor == "AM":
         old_threshp = [0.792, 0.906, 0.972, 0.99]
-    elif dist == "MP2":
+    elif predictor == "MP2":
         old_threshp = [0.737, 0.829, 0.895, 0.932]
-    elif dist == "REVEL":
+    elif predictor == "REVEL":
         old_threshp = [0.644, 0.773, 0.879, 0.932]
     else:
         old_threshp = [np.nan, np.nan, np.nan, np.nan]
@@ -1110,7 +1083,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
         label=f"gnomAD ({len(unlabdat[0])})",
     )
     ax3.legend(loc="upper right", fontsize=8)
-    ax2.set_xlabel(f"{gene} {dist} Score (Prior: {round(alpha,4)})")
+    ax2.set_xlabel(f"{gene} {predictor} Score (Prior: {round(alpha,4)})")
     plt.tight_layout()
 
     linestyles = ["dotted", "dashed", "dashdot", (5, (10, 3)), "solid"]
@@ -1118,14 +1091,14 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
     strens = ["Supporting", "Moderate", "+3", "Strong", "VeryStrong"]
 
     with open(logfn, "a") as f:
-        f.write(f"The {dist} thresholds in BP4: {bintersections}.\n")
+        f.write(f"The {predictor} thresholds in BP4: {bintersections}.\n")
         f.write(
-            f"The {dist} highest strength in BP4: "
+            f"The {predictor} highest strength in BP4: "
             f"{strens[len(bintersections)-1]}.\n"
         )
-        f.write(f"The {dist} thresholds in PP3: {pintersections}.\n")
+        f.write(f"The {predictor} thresholds in PP3: {pintersections}.\n")
         f.write(
-            f"The {dist} highest strength in PP3: "
+            f"The {predictor} highest strength in PP3: "
             f"{strens[len(pintersections)-1]}.\n"
         )
         f.write("\n\n__________________________________\n\n")
@@ -1170,7 +1143,7 @@ def run_final_calibration_for_gene(gene, dist, alpha, pnrat, method):
 
     ax2.legend(bbox_to_anchor=(1.09, 1), loc="upper left")
     plt.tight_layout()
-    out_png = f"{BASE_PATH}/{gene}/p95_oob{dist}_{method}_{gene}_final_calib.png"
+    out_png = f"{BASE_PATH}/{gene}/p95_oob{predictor}_{method}_{gene}_final_calib.png"
     plt.savefig(out_png, dpi=200)
     plt.close()
 
@@ -1186,7 +1159,7 @@ def _parse_gene_dist_from_index(idx: int):
     """
     Read the idx-th line (1-based) from 00.gene_dist.list.
     Each line contains:  <GENE> <DIST>
-    Returns (gene, dist)
+    Returns (gene, predictor)
     """
     with open(GENE_DIST_LIST) as f:
         lines = f.read().strip().splitlines()
@@ -1196,8 +1169,8 @@ def _parse_gene_dist_from_index(idx: int):
 
     parts = lines[idx - 1].strip().split()
     gene = parts[0]
-    dist = parts[1]
-    return gene, dist
+    predictor = parts[1]
+    return gene, predictor
 
 
 def _read_median_prior_for_gene(gene: str) -> float:
@@ -1232,60 +1205,60 @@ def _read_median_prior_for_gene(gene: str) -> float:
     return vals[n // 2] if n % 2 == 1 else (vals[n // 2 - 1] + vals[n // 2]) / 2
 
 
-def _parse_simu_info(gene: str, dist: str):
-    """
-    Reads pnratio, nsamp and method from new{gene}_{dist}_SimuInfo.txt.
-    """
-    fn = f"{BASE_PATH}/{gene}/new{gene}_{dist}_SimuInfo.txt"
-
-    if not os.path.exists(fn):
-        raise FileNotFoundError(f"Missing simulation info: {fn}")
-
-    pnrat = None
-    nsamp = None
-    method = None
-
-    with open(fn) as f:
+def _parse_simu_info(infofile: str):
+    """Parse pnr, nsamp, method from new{gene}_{predictor}_SimuInfo.txt."""
+    pnr = nsamp = method = None
+    with open(infofile, "r") as f:
         for line in f:
             line = line.strip()
             if line.startswith("pnr"):
-                pnrat = float(line.split(":")[1])
+                pnr = float(line.split(":")[1])
             elif line.startswith("nsamp"):
                 nsamp = int(line.split(":")[1])
             elif line.startswith("method"):
                 method = line.split(":")[1]
-
-    if pnrat is None or nsamp is None or method is None:
-        raise ValueError(f"Malformed SimuInfo file: {fn}")
-
-    return pnrat, nsamp, method
-
+    if pnr is None or nsamp is None or method is None:
+        raise ValueError(f"Missing pnr/nsamp/method in {infofile}")
+    return pnr, nsamp, method
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python -m calib_pipeline.calib_step03 ARRAY_IDX", file=sys.stderr)
-        sys.exit(1)
-    try:
-        array_idx = int(sys.argv[1])
-    except ValueError:
-        print(f"ARRAY_IDX must be an integer, got {sys.argv[1]!r}", file=sys.stderr)
-        sys.exit(1)
+    import argparse
 
-    gene, dist = _parse_gene_dist_from_index(array_idx)
-    alpha = _read_median_prior_for_gene(gene)
-    pnrat, nsamp, method = _parse_simu_info(gene, dist)
+    parser = argparse.ArgumentParser(description="Compute calibration metrics")
 
-    print(
-        f"[calib_step03] ARRAY_IDX={array_idx} -> gene={gene}, dist={dist}, "
-        f"alpha={alpha}, pnrat={pnrat}, nsamp={nsamp}, method={method}"
-    )
+    parser.add_argument("--gene", required=True)
+    parser.add_argument("--predictor", required=True)
+    parser.add_argument("--outdir", required=True)
+    parser.add_argument("--prior", required=True, type=float)
+
+    args = parser.parse_args()
+    gene = args.gene
+    predictor = args.predictor
+    outdir = args.outdir
+    alpha = args.prior
+
+    print(f"[Step02] gene={gene}, predictor={predictor}")
+    gene_dir = os.path.join(outdir, gene)
+    
+    # --- Read SimuInfo ---
+    infofile = os.path.join(gene_dir, f"{gene}_{predictor}_SimuInfo.txt")
+    if not os.path.exists(infofile):
+        raise FileNotFoundError(f"Missing SimuInfo: {infofile}")
+
+    pnr, nsamp, method = _parse_simu_info(infofile)
+    
+    # --- Path to simulation outputs ---
+    path = os.path.join(gene_dir, f"{gene}_{predictor}_{method}_Ntrain{nsamp}")
+    print(f"Using path: {path}")
+    print(f"[Step03] gene={gene}, predictor={predictor}")
 
     run_final_calibration_for_gene(
         gene=gene,
-        dist=dist,
+        predictor=predictor,
         alpha=alpha,
-        pnrat=pnrat,
+        pnr=pnr,
         method=method,
+        outdir=outdir
     )
 
 
