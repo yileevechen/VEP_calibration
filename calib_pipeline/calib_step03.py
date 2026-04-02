@@ -38,46 +38,12 @@ _BOOT_GLOBALS = {}
 N_PROCS = 16  # set to match your BSUB -n
 
 # -------------------------------------------------------------------
-# Small helpers that do NOT depend on gene/predictor
+# Helper
 # -------------------------------------------------------------------
-def rm_monoincrease_transform(posterior):
-    """Fix minor non-monotonic wiggles for posterior curves."""
-    def check_monotonic(lst):
-        if all(x <= y for x, y in zip(lst, lst[1:])):
-            return True
-        if all(x >= y for x, y in zip(lst, lst[1:])):
-            return True
-        return False
-
-    posterior = np.array(posterior, dtype=float)
-    if check_monotonic(posterior):
-        return posterior
-
-    min_idx = np.argmin(posterior[0:100])
-    posterior[:min_idx] = posterior[min_idx]
-
-    max_idx = np.argmax(posterior)
-    posterior[max_idx + 1:] = np.maximum.accumulate(posterior[max_idx + 1:])
-    posterior[max_idx + 1:] = posterior[max_idx]
-    return posterior
-
-
-def rm_force_monodecreasing(lst):
-    """Force a decreasing curve (for benign side)."""
-    lst = np.array(lst, dtype=float)
-    max_idx = np.argmax(lst[0:100])
-    lst[:max_idx] = np.max(lst[0:100])
-    for i in range(1, len(lst)):
-        if lst[i] > lst[i - 1]:
-            lst[i] = lst[i - 1]
-    return lst
-
-
 def intersect_lists(*lists):
     if not lists:
         return []
     return list(set(lists[0]).intersection(*lists[1:]))
-
 
 def getMonoCalibNN(X, y, X_test, alpha, num_ensemble=15, epochs=300):
     """Fit MonoPost ensemble on real labeled data and predict on X_test grid."""
@@ -243,7 +209,7 @@ def fit_beta_mixture(classes, predictions, test_preds):
 
 
 # -------------------------------------------------------------------
-# Bootstrap helpers for non-MonoPost methods (top-level for multiprocessing)
+# Bootstrap helpers for methods (top-level for multiprocessing)
 # -------------------------------------------------------------------
 def _to_numpy(x):
     """
