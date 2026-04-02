@@ -181,7 +181,7 @@ def main():
         for i in range(1, 31):
             print(f"[{gene} {predictor} {method}] iteration {i}")
 
-            pkfn = os.path.join(path, f"{predictor}_simu_{method}{i}.0.pkl")
+            pkfn = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}.pkl")
             if not os.path.exists(pkfn):
                 print(f"  Missing {pkfn}, skipping")
                 continue
