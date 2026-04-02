@@ -88,7 +88,7 @@ def run_calibration(
     # --- 3. Check local calibration output ---
     local_b95_path = os.path.join(
         sim_outdir,
-        f"{predictor}_simu_{method}{seed}_calib_outputs_B95.csv",
+        f"{gene}_{predictor}_simu_{method}_seed{seed}_calib_outputs_B95.csv",
     )
 
     # --- 4. Local calibration ---
