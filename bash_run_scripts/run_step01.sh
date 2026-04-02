@@ -15,6 +15,6 @@ source activate calibrate_para
 python -m calib_pipeline.calib_step01 \
     --gene BRCA1 \
     --predictor REVEL \
-    --alpha 0.12 \
+    --alpha 0.072 \
     --base_dir /path/to/output \
     --seed ${SEED}
