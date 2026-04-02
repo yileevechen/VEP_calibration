@@ -937,10 +937,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
                 ) / (y_p[i + 1] - y_p[i])
                 x_candidates.append(x_int)
         if x_candidates:
-            if best_model_core == "SplineCalib":
-                pintersections.append(min(x_candidates))
-            else:
-                pintersections.append(max(x_candidates))
+            pintersections.append(max(x_candidates))
         else:
             pintersections.append(np.nan)
         print(f"y_horiz: {y_horiz}; pintersections: {pintersections}")
