@@ -1050,7 +1050,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
 # main(): ARRAY_IDX wrapper
 # -------------------------------------------------------------------
 def _parse_simu_info(infofile: str):
-    """Parse pnr, nsamp, method from new{gene}_{predictor}_SimuInfo.txt."""
+    """Parse pnr, nsamp, method from {gene}_{predictor}_SimuInfo.txt."""
     pnr = nsamp = method = None
     with open(infofile, "r") as f:
         for line in f:
@@ -1068,7 +1068,7 @@ def _parse_simu_info(infofile: str):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Compute calibration metrics")
+    parser = argparse.ArgumentParser(description="Compute final calibration results")
 
     parser.add_argument("--gene", required=True)
     parser.add_argument("--predictor", required=True)
