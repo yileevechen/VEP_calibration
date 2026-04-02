@@ -423,10 +423,10 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
     METRIC_DIR = f"{outdir}/{gene}/{predictor}_{method}_calib_metric"
 
     # Path to labeled / unlabeled ClinVar + gnomAD score files
-    labfn = f"{outdir}/{gene}/{gene}_{predictor}_labeled.txt"
+    labfn = f"{outdir}/data/{gene}_{predictor}_labeled.txt"
     labdat = pd.read_table(labfn, header=None)
 
-    unlabfn = f"{outdir}/{gene}/{gene}_{predictor}_unlabeled.txt"
+    unlabfn = f"{outdir}/data/{gene}_{predictor}_unlabeled.txt"
     unlabdat = pd.read_table(unlabfn, header=None)
 
     # Log file for this gene/predictor
