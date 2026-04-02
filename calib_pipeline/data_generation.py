@@ -36,7 +36,12 @@ def _fit_params_path(cfg: DataGenConfig, gene: str, predictor: str) -> str:
 
 def _load_fit_params(cfg: DataGenConfig, gene: str, predictor: str) -> dict:
     parafn = _fit_params_path(cfg, gene, predictor)
-
+    if not os.path.exists(parafn):
+        raise FileNotFoundError(f"Fit parameters file not found: {parafn}")
+    
+    with open(parafn, "rb") as f:
+        params = pickle.load(f)
+    return params
 
 def buildSkewTBetaMixDataGenerator(cfg: DataGenConfig, gene: str, predictor: str, lo: float, hi: float):
     fit_para = _load_fit_params(cfg, gene, predictor)
