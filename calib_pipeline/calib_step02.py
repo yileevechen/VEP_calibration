@@ -5,11 +5,6 @@ import math
 import pickle
 import numpy as np
 import pandas as pd
-
-TAV_BASE = "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/calib_decision_tree/clingen-svi-comp_calibration_python-master"
-if TAV_BASE not in sys.path:
-    sys.path.append(TAV_BASE)
-
 from Tavtigian.tavtigianutils import (
     get_tavtigian_c,
     get_tavtigian_thresholds,
@@ -17,30 +12,11 @@ from Tavtigian.tavtigianutils import (
 )
 
 # ----------------------------------------------------------------------
-# Paths / constants
+# Helpers
 # ----------------------------------------------------------------------
-
-BASE = "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main"
-PRIOR_BASE = os.path.join(BASE, "calib_decision_tree", "inheritance_analysis", "prior_gnomad")
-CALIB_BASE = os.path.join(BASE, "single_gene_calibration_pipeline")
-GENE_DIST_LIST = os.path.join(CALIB_BASE, "00.gene_dist.list")
-
-
-# ----------------------------------------------------------------------
-# Small helpers
-# ----------------------------------------------------------------------
-
-def _read_line(filename: str, idx: int) -> str:
-    """Return 1-based line idx from filename."""
-    with open(filename, "r") as f:
-        for i, line in enumerate(f, start=1):
-            if i == idx:
-                return line.strip()
-    raise IndexError(f"File {filename} has fewer than {idx} lines.")
-
 
 def _parse_simu_info(infofile: str):
-    """Parse pnr, nsamp, method from new{gene}_{dist}_SimuInfo.txt."""
+    """Parse pnr, nsamp, method from new{gene}_{predictor}_SimuInfo.txt."""
     pnr = nsamp = method = None
     with open(infofile, "r") as f:
         for line in f:
@@ -55,82 +31,9 @@ def _parse_simu_info(infofile: str):
         raise ValueError(f"Missing pnr/nsamp/method in {infofile}")
     return pnr, nsamp, method
 
-
-def _read_alpha_prior(gene: str) -> float:
-    """
-    Read median prior alpha from prior_gnomad ... cluster_gnomad.res_btstrap.txt,
-    robust to malformed numbers like '0..07801725'.
-    """
-    prior_file = os.path.join(
-        PRIOR_BASE,
-        gene,
-        "uniboot_rus_pca_notfiltmp2train",
-        "cluster_gnomad.res_btstrap.txt",
-    )
-    if not os.path.exists(prior_file):
-        raise FileNotFoundError(f"Prior file not found: {prior_file}")
-
-    with open(prior_file, "r") as f:
-        txt = f.read()
-
-    # Extract values after "The prior is:"
-    raw_vals = re.findall(r"The prior is:\s*([0-9.]+)", txt)
-    vals = []
-    for s in raw_vals:
-        try:
-            vals.append(float(s))
-        except ValueError:
-            # Skip malformed floats like "0..078..."
-            continue
-
-    if not vals:
-        raise ValueError(f"No valid prior values found in {prior_file}")
-
-    vals = sorted(vals)
-    n = len(vals)
-    if n % 2 == 1:
-        return vals[n // 2]
-    else:
-        return 0.5 * (vals[n // 2 - 1] + vals[n // 2])
-
-
-# ----------------------------------------------------------------------
-# Tavtigian-related helpers
-# ----------------------------------------------------------------------
-
 def get_lr(alpha: float):
     c = get_tavtigian_c(alpha)
     return get_tavtigian_thresholds(c, alpha), (c ** (1 / 8))[0], (c ** (-1 / 8))[0]
-
-
-def monoincrease_transform_p(posterior):
-    posterior = np.array(posterior, dtype=float)
-
-    # "Fix" early dip
-    if len(posterior) > 0:
-        min_idx = np.argmin(posterior[0:min(100, len(posterior))])
-        posterior[:min_idx] = posterior[min_idx]
-
-        max_idx = np.argmax(posterior)
-        posterior[max_idx + 1:] = np.maximum.accumulate(posterior[max_idx + 1:])
-        posterior[max_idx + 1:] = posterior[max_idx]
-
-    return posterior
-
-
-def monoincrease_transform_b(posterior):
-    posterior = np.array(posterior, dtype=float)
-
-    if len(posterior) > 0:
-        min_idx = np.argmin(posterior[0:min(100, len(posterior))])
-        posterior[:min_idx] = posterior[min_idx]
-
-        max_idx = np.argmax(posterior)
-        posterior[max_idx + 1:] = np.maximum.accumulate(posterior[max_idx + 1:])
-        posterior[max_idx + 1:] = posterior[max_idx]
-
-    return posterior
-
 
 def metric3_p(dtrue, dcalib, Post_p, Post_b, lr_supp_pos):
     dtrue = np.asarray(dtrue, dtype=float).flatten()
@@ -233,35 +136,35 @@ def get_bp4_frac(oddsratio, Post_b, dtrue, dcalib):
 # ----------------------------------------------------------------------
 
 def main():
-    if len(sys.argv) < 2:
-        raise SystemExit("Usage: python -m calib_pipeline.calib_step02 ARRAY_IDX")
+    import argparse
 
-    array_idx = int(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Compute calibration metrics")
 
-    # ----- Resolve gene & dist from 00.gene_dist.list -----
-    line = _read_line(GENE_DIST_LIST, array_idx)
-    parts = line.split()
-    if len(parts) < 2:
-        raise ValueError(f"Line {array_idx} in {GENE_DIST_LIST} does not have 'gene dist'")
-    gene, dist = parts[0], parts[1]
+    parser.add_argument("--gene", required=True)
+    parser.add_argument("--predictor", required=True)
+    parser.add_argument("--outdir", required=True)
+    parser.add_argument("--prior", required=True, type=float)
 
-    gene_dir = os.path.join(CALIB_BASE, gene)
-    os.makedirs(gene_dir, exist_ok=True)
-
-    # ----- alpha (median prior) -----
-    alpha = _read_alpha_prior(gene)
-    (Post_p, Post_b), lr_supp_pos, lr_supp_neg = get_lr(alpha=alpha)
-
-    # ----- pnr, nsamp, method from SimuInfo -----
-    infofile = os.path.join(gene_dir, f"new{gene}_{dist}_SimuInfo.txt")
+    args = parser.parse_args()
+    print(f"[Step02] gene={gene}, predictor={predictor}")
+    gene_dir = os.path.join(outdir, gene)
+    
+    # --- Read SimuInfo ---
+    infofile = os.path.join(gene_dir, f"{gene}_{predictor}_SimuInfo.txt")
     if not os.path.exists(infofile):
-        raise FileNotFoundError(f"SimuInfo file not found: {infofile}")
+        raise FileNotFoundError(f"Missing SimuInfo: {infofile}")
 
     pnr, nsamp, method = _parse_simu_info(infofile)
-    n_calibrate = nsamp
+    
+    # --- Path to simulation outputs ---
+    path = os.path.join(gene_dir, f"{predictor}_{gene}_{method}_Ntrain{nsamp}")
+    print(f"Using path: {path}")
 
-    # Base path for this gene / dist / method
-    path = os.path.join(gene_dir, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}")
+    (Post_p, Post_b), lr_supp_pos, lr_supp_neg = get_lr(alpha)
+
+    # Base path for this gene / predictor / method
+    path = os.path.join(gene_dir, f"{predictor}_{gene}_{method}_Ntrain{nsamp}")
+    
     print(f"Working on path: {path}")
     print(f"(Post_p, Post_b): {(Post_p, Post_b)}; lr_supp_pos={lr_supp_pos}; lr_supp_neg={lr_supp_neg}")
 
@@ -272,12 +175,11 @@ def main():
     df_bp4_fracs = df_bp4_misest = df_bp4_misest90 = None
     df_all_fracs = df_ave_misests = df_ave_abs_diff = None
 
-    # We only have clustn=1 in these scripts, but keep it explicit for extension
-    for clustn in range(1, 2):
+    if True:
         for i in range(1, 31):
-            print(f"[{gene} {dist} {method}] iteration {i}")
+            print(f"[{gene} {predictor} {method}] iteration {i}")
 
-            pkfn = os.path.join(path, f"{dist}_simu_{method}{i}.0.pkl")
+            pkfn = os.path.join(path, f"{predictor}_simu_{method}{i}.0.pkl")
             if not os.path.exists(pkfn):
                 print(f"  Missing {pkfn}, skipping")
                 continue
@@ -285,14 +187,14 @@ def main():
                 _ = pickle.load(f)  # not used directly, but keep for parity
 
             # ---- LOCAL calib outputs ----
-            local_main = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs.csv")
-            local_p95 = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs_P95.csv")
-            local_b95 = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs_B95.csv")
+            local_main = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs.csv")
+            local_p95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_P95.csv")
+            local_b95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_B95.csv")
 
             # ---- OTHERS calib outputs (include MonoPostNN column) ----
-            oth_main = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs_others.csv")
-            oth_p95 = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs_P95_others.csv")
-            oth_b95 = os.path.join(path, f"{dist}_simu_{method}{i}.0_calib_outputs_B95_others.csv")
+            oth_main = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_others.csv")
+            oth_p95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_P95_others.csv")
+            oth_b95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_B95_others.csv")
 
             # Need at least one of local/others to exist; otherwise skip
             if not (os.path.exists(local_main) or os.path.exists(oth_main)):
@@ -323,16 +225,11 @@ def main():
             ave_misests = {}
             ave_abs_diff = {}
 
-            # ------------- LOCAL part -------------
+            # ------------- LOCAL calibration part -------------
             if os.path.exists(local_main) and os.path.exists(local_p95) and os.path.exists(local_b95):
                 calibd = pd.read_csv(local_main)
                 calibd_p = pd.read_csv(local_p95)
                 calibd_b = pd.read_csv(local_b95)
-
-                # enforce monotonic transformation on "True"
-                calibd["True"] = monoincrease_transform_p(calibd["True"])
-                calibd_p["True"] = monoincrease_transform_p(calibd_p["True"])
-                calibd_b["True"] = monoincrease_transform_b(calibd_b["True"])
 
                 local_methods = [c for c in calibd.columns if c != "True"]
                 for op in local_methods:
@@ -421,15 +318,11 @@ def main():
                     # average absolute difference between True and calibrated (P-side P95 table)
                     ave_abs_diff[key] = float(np.mean(np.abs(calibd_p["True"].values - calibd_p[op].values)))
 
-            # ------------- OTHERS part (including MonoPostNN from CSV) -------------
+            # ------------- OTHER calibration methods part -------------
             if os.path.exists(oth_main) and os.path.exists(oth_p95) and os.path.exists(oth_b95):
                 calibd_o = pd.read_csv(oth_main)
                 calibd_o_p = pd.read_csv(oth_p95)
                 calibd_o_b = pd.read_csv(oth_b95)
-
-                calibd_o["True"] = monoincrease_transform_p(calibd_o["True"])
-                calibd_o_p["True"] = monoincrease_transform_p(calibd_o_p["True"])
-                calibd_o_b["True"] = monoincrease_transform_b(calibd_o_b["True"])
 
                 other_methods = [c for c in calibd_o.columns if c != "True"]
                 for op in other_methods:
@@ -571,7 +464,7 @@ def main():
     # ------------------------------------------------------------------
     # Save outputs
     # ------------------------------------------------------------------
-    dir_path = os.path.join(path, f"../{dist}_{method}_calib_metric")
+    dir_path = os.path.join(gene_dir, f"{predictor}_{method}_calib_metric")
     os.makedirs(dir_path, exist_ok=True)
 
     df_pp3_50ps.to_csv(os.path.join(dir_path, "pp3_50ps_combined.csv"))
