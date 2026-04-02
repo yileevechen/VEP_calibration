@@ -16,7 +16,7 @@ from Tavtigian.tavtigianutils import (
 # ----------------------------------------------------------------------
 
 def _parse_simu_info(infofile: str):
-    """Parse pnr, nsamp, method from new{gene}_{predictor}_SimuInfo.txt."""
+    """Parse pnr, nsamp, method from {gene}_{predictor}_SimuInfo.txt."""
     pnr = nsamp = method = None
     with open(infofile, "r") as f:
         for line in f:
@@ -155,7 +155,7 @@ def main():
     gene_dir = os.path.join(outdir, gene)
     
     # --- Read SimuInfo ---
-    infofile = os.path.join(gene_dir, f"{gene}_{predictor}_SimuInfo.txt")
+    infofile = os.path.join(gene_dir, f"{gene}_{Info.txt")
     if not os.path.exists(infofile):
         raise FileNotFoundError(f"Missing SimuInfo: {infofile}")
 
@@ -181,7 +181,7 @@ def main():
         for i in range(1, 31):
             print(f"[{gene} {predictor} {method}] iteration {i}")
 
-            pkfn = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}.pkl")
+            pkfn = os.path.join(path, f"{gene}_{_{method}_seed{i}.pkl")
             if not os.path.exists(pkfn):
                 print(f"  Missing {pkfn}, skipping")
                 continue
@@ -189,14 +189,14 @@ def main():
                 _ = pickle.load(f)  # not used directly, but keep for parity
 
             # ---- LOCAL calib outputs ----
-            local_main = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs.csv")
-            local_p95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_P95.csv")
-            local_b95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_B95.csv")
+            local_main = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs.csv")
+            local_p95 = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs_P95.csv")
+            local_b95 = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs_B95.csv")
 
             # ---- OTHERS calib outputs (include MonoPostNN column) ----
-            oth_main = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_others.csv")
-            oth_p95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_P95_others.csv")
-            oth_b95 = os.path.join(path, f"{predictor}_simu_{method}{i}.0_calib_outputs_B95_others.csv")
+            oth_main = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs_others.csv")
+            oth_p95 = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs_P95_others.csv")
+            oth_b95 = os.path.join(path, f"{gene}_{predictor}_simu_{method}_seed{i}_calib_outputs_B95_others.csv")
 
             # Need at least one of local/others to exist; otherwise skip
             if not (os.path.exists(local_main) or os.path.exists(oth_main)):
