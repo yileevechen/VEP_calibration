@@ -12,5 +12,5 @@ source activate calibrate_para
 python -m calib_pipeline.calib_step03 \
     --gene BRCA1 \
     --predictor REVEL \
-    --prior 0.12 \
+    --prior 0.072 \
     --outdir /path/to/output
