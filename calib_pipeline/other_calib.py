@@ -5,7 +5,6 @@ import json
 import jsonpickle
 import time
 from multiprocessing import Pool
-
 import numpy as np
 
 def _to_numpy(x):
@@ -33,25 +32,51 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.isotonic import IsotonicRegression
 
 import ml_insights as mli
+import torch
 
-# --- External code paths ---
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/simulation_strategy"
-)
-from parser import getParser  # noqa: E402
+# --- External dependencies (user-provided or auto-fallback to local clones) ---
+EXTERNAL_BASE = os.environ.get("CALIB_EXTERNAL_BASE", None)
 
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/mave_calibration-master"
-)
-from mave_calibration.main import single_fit  # noqa: E402
-from mave_calibration.skew_normal.density_utils import joint_densities  # noqa: E402
+def _safe_append(path):
+    if path and os.path.exists(path) and path not in sys.path:
+        sys.path.append(path)
 
-sys.path.append(
-    "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/calibrationexp-main/PosteriorCalibration-master"
-)
-from MonotonicPosterior.computePosterior_fast import computePosteriorFromEnsemble  # noqa: E402
+# Expected structure (user can override via env var):
+#   $CALIB_EXTERNAL_BASE/
+#       simulation_strategy/
+#       mave_calibration/
+#       PosteriorCalibration/
 
-import torch  # noqa: E402
+if EXTERNAL_BASE:
+    _safe_append(os.path.join(EXTERNAL_BASE, "simulation_strategy"))
+    _safe_append(os.path.join(EXTERNAL_BASE, "mave_calibration"))
+    _safe_append(os.path.join(EXTERNAL_BASE, "PosteriorCalibration"))
+
+# Fallback: allow imports if user installed via pip or manually cloned into PYTHONPATH
+try:
+    from parser import getParser  # from simulation_strategy
+except ImportError:
+    raise ImportError(
+        "Cannot import 'parser'. Please clone or install simulation_strategy repo "
+        "(https://github.com/shajain/GaussianMixDataGenerator) and set CALIB_EXTERNAL_BASE."
+    )
+
+try:
+    from mave_calibration.main import single_fit
+    from mave_calibration.skew_normal.density_utils import joint_densities
+except ImportError:
+    raise ImportError(
+        "Cannot import mave_calibration. Please install from "
+        "https://github.com/Dzeiberg/mave_calibration"
+    )
+
+try:
+    from MonotonicPosterior.computePosterior_fast import computePosteriorFromEnsemble
+except ImportError:
+    raise ImportError(
+        "Cannot import PosteriorCalibration. Please install from "
+        "https://github.com/shajain/PosteriorCalibration"
+    )
 
 
 # =====================================================================
@@ -552,7 +577,7 @@ def main():
     parser = getParser()
     args = parser.parse_args()
 
-    dist = args.dist
+    predictor = args.predictor
     method = args.method
     seed = args.seed * 828
     outdir = args.outdir
@@ -573,21 +598,21 @@ def main():
         n_test = args.n_test
 
     outdir = os.path.join(
-        outdir, f"{dist}_{gene}_{method}_Ntrain{n_calibrate}"
+        outdir, f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}"
     )
     os.makedirs(outdir, exist_ok=True)
     np.random.seed(seed)
 
     # Main outputs file (point estimates for all methods)
     main_outfile = os.path.join(
-        outdir, f"{dist}_simu_{method}{seed/828}_calib_outputs_others.csv"
+        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_others.csv"
     )
     if os.path.exists(main_outfile):
         print(f"{main_outfile} exists, will not overwrite main point estimates.")
     else:
         # Load simulation data
         with open(
-            f"{outdir}/{dist}_simu_{method}{seed/828}.pkl", "rb"
+            f"{outdir}/{predictor}_simu_{method}{seed/828}.pkl", "rb"
         ) as f:
             simudat = pickle.load(f)
 
@@ -692,16 +717,16 @@ def main():
 
     # Outputs for percentiles
     p95_outfile = os.path.join(
-        outdir, f"{dist}_simu_{method}{seed/828}_calib_outputs_P95_others.csv"
+        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_P95_others.csv"
     )
     b95_outfile = os.path.join(
-        outdir, f"{dist}_simu_{method}{seed/828}_calib_outputs_B95_others.csv"
+        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_B95_others.csv"
     )
     p50_outfile = os.path.join(
-        outdir, f"{dist}_simu_{method}{seed/828}_calib_outputs_P50_others.csv"
+        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_P50_others.csv"
     )
     b50_outfile = os.path.join(
-        outdir, f"{dist}_simu_{method}{seed/828}_calib_outputs_B50_others.csv"
+        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_B50_others.csv"
     )
 
     if (
@@ -715,7 +740,7 @@ def main():
 
     # Load simudat again for bootstrap + MonoPost ensemble
     with open(
-        f"{outdir}/{dist}_simu_{method}{seed/828}.pkl", "rb"
+        f"{outdir}/{predictor}_simu_{method}{seed/828}.pkl", "rb"
     ) as f:
         simudat = pickle.load(f)
 
