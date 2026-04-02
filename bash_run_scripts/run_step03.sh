@@ -7,7 +7,7 @@
 #BSUB -e "logs/calib_step03.%J.err"
 #BSUB -o "logs/calib_step03.%J.out"
 
-source activate calibrate_para
+source activate calibrate
 
 python -m calib_pipeline.calib_step03 \
     --gene BRCA1 \
