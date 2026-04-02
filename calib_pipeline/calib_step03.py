@@ -742,7 +742,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
                 X_test=X_grid,
                 X_unlabel=X_unlab_full_,
                 alpha=alpha,
-                pnr=pnr,
+                pnrat=pnrat,
             )
             return X_grid, full_post
 
