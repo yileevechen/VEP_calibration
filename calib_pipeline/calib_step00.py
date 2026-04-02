@@ -54,7 +54,7 @@ def run_simulation(
     _validate_inputs(labeled_path, unlabeled_path)
 
     # --- Step 1: Fit distribution using user data ---
-    gb_cfg = GetBestFitConfig(base_output_dir=outdir)
+    gb_cfg = GetBestFitConfig(outdir=outdir)
 
     fit_best_distribution(
         gene=gene,
