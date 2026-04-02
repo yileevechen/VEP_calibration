@@ -598,7 +598,7 @@ def main():
         n_test = args.n_test
 
     outdir = os.path.join(
-        outdir, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}"
+        outdir, gene, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}"
     )
     os.makedirs(outdir, exist_ok=True)
     np.random.seed(seed)
@@ -612,7 +612,7 @@ def main():
     else:
         # Load simulation data
         with open(
-            f"{outdir}/{predictor}_simu_{method}{seed/828}.pkl", "rb"
+            f"{outdir}/{gene}_{predictor}_simu_{method}_seed{int(seed/828)}.pkl", "rb"
         ) as f:
             simudat = pickle.load(f)
 
@@ -740,7 +740,7 @@ def main():
 
     # Load simudat again for bootstrap + MonoPost ensemble
     with open(
-        f"{outdir}/{predictor}_simu_{method}{seed/828}.pkl", "rb"
+        f"{outdir}/{gene}_{predictor}_simu_{method}_seed{int(seed/828)}.pkl", "rb"
     ) as f:
         simudat = pickle.load(f)
 
