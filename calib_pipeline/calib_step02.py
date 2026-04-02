@@ -146,6 +146,11 @@ def main():
     parser.add_argument("--prior", required=True, type=float)
 
     args = parser.parse_args()
+    gene = args.gene
+    predictor = args.predictor
+    outdir = args.outdir
+    alpha = args.prior
+
     print(f"[Step02] gene={gene}, predictor={predictor}")
     gene_dir = os.path.join(outdir, gene)
     
@@ -157,13 +162,10 @@ def main():
     pnr, nsamp, method = _parse_simu_info(infofile)
     
     # --- Path to simulation outputs ---
-    path = os.path.join(gene_dir, f"{predictor}_{gene}_{method}_Ntrain{nsamp}")
+    path = os.path.join(gene_dir, f"{gene}_{predictor}_{method}_Ntrain{nsamp}")
     print(f"Using path: {path}")
 
     (Post_p, Post_b), lr_supp_pos, lr_supp_neg = get_lr(alpha)
-
-    # Base path for this gene / predictor / method
-    path = os.path.join(gene_dir, f"{predictor}_{gene}_{method}_Ntrain{nsamp}")
     
     print(f"Working on path: {path}")
     print(f"(Post_p, Post_b): {(Post_p, Post_b)}; lr_supp_pos={lr_supp_pos}; lr_supp_neg={lr_supp_neg}")
@@ -407,7 +409,8 @@ def main():
                 print(f"  No usable local/others tables for iteration {i}, skipping.")
                 continue
 
-            # Attach clustn + iter label
+            # Attach gene + predictor + iter label
+            clustn = str(gene) + "_" + str(predictor)
             idx_pp3 = f"{clustn}_pp3_50ps_{i}"
             idx_bp4 = f"{clustn}_bp4_50ps_{i}"
             idx_all = f"{clustn}_all_fracs_{i}"
