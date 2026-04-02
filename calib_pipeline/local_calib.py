@@ -140,7 +140,7 @@ def run_local_calibration(
     simdir = os.path.join(outdir_base, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}")
     os.makedirs(simdir, exist_ok=True)
 
-    base_fname = f"{predictor}_simu_{method}{tag}"
+    base_fname = f"{gene}_{predictor}_simu_{method}_seed{tag}"
     out_csv = os.path.join(simdir, base_fname + "_calib_outputs.csv")
     out_p95 = os.path.join(simdir, base_fname + "_calib_outputs_P95.csv")
     out_b95 = os.path.join(simdir, base_fname + "_calib_outputs_B95.csv")
