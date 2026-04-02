@@ -584,7 +584,7 @@ def main():
     alpha = args.alpha
     n_calibrate = args.n_calibrate
     n_test = args.n_test
-    gene = args.clustn
+    gene = args.gene
     pnratio_calibrate = args.pnratio_calibrate
     pnratio_test = args.pnratio_test
     np.random.seed(seed)
