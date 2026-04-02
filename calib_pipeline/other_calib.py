@@ -1,7 +1,7 @@
 import sys
 import os
 import pickle
-import json
+import jsonc
 import jsonpickle
 import time
 from multiprocessing import Pool
@@ -605,7 +605,7 @@ def main():
 
     # Main outputs file (point estimates for all methods)
     main_outfile = os.path.join(
-        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_others.csv"
+        outdir, f"{gene}_{predictor}_simu_{method}_seed{int(seed/828)}_calib_outputs_others.csv"
     )
     if os.path.exists(main_outfile):
         print(f"{main_outfile} exists, will not overwrite main point estimates.")
@@ -717,16 +717,16 @@ def main():
 
     # Outputs for percentiles
     p95_outfile = os.path.join(
-        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_P95_others.csv"
+        outdir, f"{gene}_{predictor}_simu_{method}_seed{int(seed/828)}_calib_outputs_P95_others.csv"
     )
     b95_outfile = os.path.join(
-        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_B95_others.csv"
+        outdir, f"{gene}_{predictor}_simu_{method}_seed{int(seed/828)}_calib_outputs_B95_others.csv"
     )
     p50_outfile = os.path.join(
-        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_P50_others.csv"
+        outdir, f"{gene}_{predictor}_simu_{method}_seed{int(seed/828)}_calib_outputs_P50_others.csv"
     )
     b50_outfile = os.path.join(
-        outdir, f"{predictor}_simu_{method}{seed/828}_calib_outputs_B50_others.csv"
+        outdir, f"{gene}_{predictor}_simu_{method}_seed{int(seed/828)}_calib_outputs_B50_others.csv"
     )
 
     if (
