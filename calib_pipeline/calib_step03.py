@@ -384,7 +384,7 @@ def _fit_and_predict_once(best_model, X_train, y_train, X_test, X_unlabel, alpha
 
 def _run_single_bootstrap(seed):
     """
-    One bootstrap replicate for NON-MonoPost models:
+    One bootstrap replicate for models:
       - resample labeled (with replacement)
       - OOB labeled + all unlabeled as test set
 
@@ -441,98 +441,6 @@ def _run_single_bootstrap(seed):
     lab_post_full[lab_oob_idx] = lab_post
 
     return lab_post_full, unlab_post
-
-
-# -------------------------------------------------------------------
-# SPECIAL: True OOB bootstrap for MonoPostNN
-# -------------------------------------------------------------------
-def _monopost_oob_bootstrap(X_lab, y_lab, X_unlab, alpha,
-                            B=200, num_ensemble=5, epochs=300, seed=828):
-    """
-    Proper OOB bootstrap for MonoPostNN:
-
-      For each bootstrap b:
-        - draw a bootstrap sample of labeled data
-        - train MonoPostNN ensemble on that sample
-        - predict robust-mean posterior for all (labeled + unlabeled)
-        - collect predictions for:
-            * labeled variants that are OOB in this bootstrap
-            * all unlabeled variants (they are always "OOB")
-
-      Finally:
-        - labeled: 5th percentile across bootstraps where each variant was OOB
-        - unlabeled: 5th percentile across all bootstraps
-    """
-    X_lab = np.asarray(X_lab, float)
-    y_lab = np.asarray(y_lab, int)
-    X_unlab = np.asarray(X_unlab, float)
-
-    n_lab = len(X_lab)
-    n_unlab = len(X_unlab)
-
-    #rng = np.random.default_rng(seed)
-
-    # store predictions per labeled variant
-    lab_preds_list = [[] for _ in range(n_lab)]
-    # store predictions across bootstraps for unlabeled
-    unlab_preds_all = []
-
-    X_all = np.concatenate([X_lab, X_unlab]).astype(float)
-
-    for b in range(B):
-        # bootstrap indices with replacement from labeled
-        rng = np.random.default_rng(seed * 5 * b)
-        sample_idx = rng.integers(0, n_lab, size=n_lab)
-        unique_sample = np.unique(sample_idx)
-
-        # OOB mask
-        oob_mask = np.ones(n_lab, dtype=bool)
-        oob_mask[unique_sample] = False
-
-        if not np.any(oob_mask):
-            continue
-
-        X_boot = X_lab[sample_idx]
-        y_boot = y_lab[sample_idx]
-
-        # train MonoPostNN ensemble on this bootstrap sample
-        post_robust = getMonoCalibNN(
-            X_boot.reshape(-1, 1),
-            y_boot,
-            X_all,
-            alpha=alpha,
-            num_ensemble=num_ensemble,
-            epochs=epochs,
-        )
-        post_robust = _to_numpy(post_robust).flatten() ## post_robust.detach().cpu().numpy().flatten()
-
-        # split back into labeled/unlabeled
-        lab_post = post_robust[:n_lab]
-        unlab_post = post_robust[n_lab:]
-
-        # store labeled predictions only for OOB indices
-        oob_idx = np.where(oob_mask)[0]
-        for idx in oob_idx:
-            lab_preds_list[idx].append(float(lab_post[idx]))
-
-        # unlabeled are always "OOB"
-        unlab_preds_all.append(unlab_post)
-
-    # aggregate 5th percentile
-    lab_p95 = np.full(n_lab, np.nan)
-    for i in range(n_lab):
-        arr = np.array(lab_preds_list[i], dtype=float)
-        if arr.size > 0:
-            lab_p95[i] = np.percentile(arr, 5)
-
-    if len(unlab_preds_all) > 0:
-        unlab_stack = np.vstack(unlab_preds_all)
-        unlab_p95 = np.percentile(unlab_stack, 5, axis=0)
-    else:
-        unlab_p95 = np.full(n_unlab, np.nan)
-
-    return lab_p95, unlab_p95
-
 
 # -------------------------------------------------------------------
 # Core function: can be called from main()
@@ -751,17 +659,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
     # ------------------------
     # Run bootstrap OOB
     # ------------------------
-    if best_model_core == "MonoPostNN":
-        # SPECIAL: MonoPostNN OOB bootstrap
-        lab_p95, unlab_p95 = _monopost_oob_bootstrap(
-            X_lab_full, y_lab_full, X_unlab_full, alpha,
-            B=200, num_ensemble=5, epochs=300, seed=123
-        )
-        with open(logfn, "a") as f:
-            f.write(
-                "MonoPostNN OOB bootstrap (B=200, num_ensemble=5) completed.\n"
-            )
-    else:
+    if True:
         # generic bootstrap using multiprocessing
         B = 100
         seeds = list(range(B))
@@ -827,7 +725,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
         )
 
         oob_all = pd.concat([df_labeled, df_unlab], ignore_index=True)
-        out_csv = f"{BASE_PATH}/{gene}/{gene}_{predictor}_oob_posterior_{best_model}.csv"
+        out_csv = f"{outdir}/{gene}/{gene}_{predictor}_oob_posterior_{best_model}.csv"
         oob_all.to_csv(out_csv, index=False)
 
         with open(logfn, "a") as f:
@@ -1143,68 +1041,14 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
 
     ax2.legend(bbox_to_anchor=(1.09, 1), loc="upper left")
     plt.tight_layout()
-    out_png = f"{BASE_PATH}/{gene}/p95_oob{predictor}_{method}_{gene}_final_calib.png"
-    plt.savefig(out_png, dpi=200)
+    out_png = f"{outdir}/{gene}/p95_oob{predictor}_{method}_{gene}_final_calib.png"
+    plt.savefig(out_png, dpi=300)
     plt.close()
 
 
 # -------------------------------------------------------------------
 # main(): ARRAY_IDX wrapper
 # -------------------------------------------------------------------
-
-GENE_DIST_LIST = f"{BASE_PATH}/00.gene_dist.list"
-
-
-def _parse_gene_dist_from_index(idx: int):
-    """
-    Read the idx-th line (1-based) from 00.gene_dist.list.
-    Each line contains:  <GENE> <DIST>
-    Returns (gene, predictor)
-    """
-    with open(GENE_DIST_LIST) as f:
-        lines = f.read().strip().splitlines()
-
-    if idx < 1 or idx > len(lines):
-        raise IndexError(f"ARRAY_IDX={idx} out of range (1–{len(lines)})")
-
-    parts = lines[idx - 1].strip().split()
-    gene = parts[0]
-    predictor = parts[1]
-    return gene, predictor
-
-
-def _read_median_prior_for_gene(gene: str) -> float:
-    """
-    Extract the median 'The prior is:' value from the bootstrap prior file.
-    """
-    fn = (
-        "/sc/arion/projects/pejaverlab/IGVF/users/cheny60/analysis/"
-        "calibrationexp-main/calib_decision_tree/inheritance_analysis/"
-        f"prior_gnomad/{gene}/uniboot_rus_pca_notfiltmp2train/"
-        "cluster_gnomad.res_btstrap.txt"
-    )
-
-    if not os.path.exists(fn):
-        raise FileNotFoundError(f"Missing prior file: {fn}")
-
-    vals = []
-    with open(fn) as f:
-        for line in f:
-            m = re.search(r"The prior is:\s*([0-9.]+)", line)
-            if m:
-                try:
-                    vals.append(float(m.group(1)))
-                except ValueError:
-                    continue
-
-    if len(vals) == 0:
-        raise ValueError(f"No valid 'The prior is:' entries found for gene {gene}")
-
-    vals.sort()
-    n = len(vals)
-    return vals[n // 2] if n % 2 == 1 else (vals[n // 2 - 1] + vals[n // 2]) / 2
-
-
 def _parse_simu_info(infofile: str):
     """Parse pnr, nsamp, method from new{gene}_{predictor}_SimuInfo.txt."""
     pnr = nsamp = method = None
@@ -1237,7 +1081,7 @@ def main():
     outdir = args.outdir
     alpha = args.prior
 
-    print(f"[Step02] gene={gene}, predictor={predictor}")
+    print(f"[Step03] gene={gene}, predictor={predictor}")
     gene_dir = os.path.join(outdir, gene)
     
     # --- Read SimuInfo ---
