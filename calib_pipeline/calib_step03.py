@@ -832,10 +832,7 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
                 ) / (y_b[i + 1] - y_b[i])
                 x_candidates.append(x_int)
         if x_candidates:
-            if best_model_core == "SmoothIsotonic":
-                bintersections.append(max(x_candidates))
-            else:
-                bintersections.append(min(x_candidates))
+            bintersections.append(min(x_candidates))
         else:
             bintersections.append(np.nan)
         print(f"y_horiz: {y_horiz}; bintersections: {bintersections}")
