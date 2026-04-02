@@ -752,6 +752,27 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
     final_post_b = 1.0 - np.flip(final_post_p)
 
     # ------------------------
+    # Build OOB posterior curve (interpolated to X_grid)
+    # ------------------------
+    # combine labeled + unlabeled OOB p95
+    X_oob_all = np.concatenate([X_lab_full, X_unlab_full])
+    oob_post_all = np.concatenate([lab_p95, unlab_p95])
+    
+    # remove NaNs
+    valid_mask = ~np.isnan(oob_post_all)
+    X_oob_valid = X_oob_all[valid_mask]
+    oob_post_valid = oob_post_all[valid_mask]
+    
+    # sort for interpolation
+    sort_idx = np.argsort(X_oob_valid)
+    X_oob_valid = X_oob_valid[sort_idx]
+    oob_post_valid = oob_post_valid[sort_idx]
+    
+    # interpolate to same grid as final curve
+    oob_post_p = np.interp(X_grid, X_oob_valid, oob_post_valid)
+    oob_post_b = 1.0 - np.flip(oob_post_p)
+
+    # ------------------------
     # Plot posterior curves + thresholds
     # ------------------------
     colors = pd.DataFrame(plt.cm.tab20(np.linspace(0, 1, 11)))
@@ -783,7 +804,16 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
         final_post_b,
         linewidth=2.0,
         color=colors.loc[color_key],
-        label=best_model_core,
+        label=f"{best_model_core} (full)"
+    )
+    # OOB curve
+    ax11.plot(
+        np.flip(X_grid),
+        oob_post_b,
+        linewidth=2.0,
+        color=colors.loc[color_key],
+        alpha=0.9,
+        label=f"{best_model_core} (OOB)",
     )
 
     for lvl, ls in zip(
@@ -815,7 +845,8 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
         )
 
     # intersections benign
-    y_b = np.array(final_post_b)
+    #y_b = np.array(final_post_b)
+    y_b = np.array(oob_post_b)
     x_b = np.array(np.flip(X_grid))
     bintersections = []
     for y_horiz in Post_b:
@@ -852,7 +883,16 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
         final_post_p,
         linewidth=2.0,
         color=colors.loc[color_key],
-        label=best_model_core,
+        label=f"{best_model_core} (full)",
+    )
+    # OOB curve
+    ax21.plot(
+        X_grid,
+        oob_post_p,
+        linewidth=2.0,
+        color=colors.loc[color_key],
+        alpha=0.8,
+        label=f"{best_model_core} (OOB)",
     )
 
     ax21.axhline(Post_p[4], linestyle="dotted", color="r")
@@ -882,7 +922,8 @@ def run_final_calibration_for_gene(gene, predictor, alpha, pnr, method, outdir):
             color="green",
         )
 
-    y_p = np.array(final_post_p)
+    #y_p = np.array(final_post_p)
+    y_p = np.array(oob_post_p)
     x_p = np.array(X_grid)
 
     pintersections = []
