@@ -166,6 +166,7 @@ def generate_simulation_data(
     method: str,
     seed_index: int,
     outdir: str,
+    labfn: str,
     alpha: float,
     n_calibrate: int,
     n_test: int,
