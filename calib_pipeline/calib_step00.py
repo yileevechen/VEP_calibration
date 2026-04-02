@@ -88,7 +88,7 @@ def run_simulation(
     print(f"SimuInfo: pnr={pnr}, nsamp={nsamp}, method={method}")
 
     # --- Step 3: Simulation ---
-    dg_cfg = DataGenConfig(base_output_dir=outdir)
+    dg_cfg = DataGenConfig(outdir=outdir)
 
     def _worker(seed_idx: int):
         return generate_simulation_data(
