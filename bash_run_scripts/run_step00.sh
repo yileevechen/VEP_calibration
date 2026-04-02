@@ -3,12 +3,16 @@
 #BSUB -q premium
 #BSUB -n 1
 #BSUB -W 06:00
-#BSUB -J calib_step00[1]
-#BSUB -e "logs/calib_step00.%J.%I.err"
-#BSUB -o "logs/calib_step00.%J.%I.out"
-
-ARRAY_IDX=${LSB_JOBINDEX}
+#BSUB -J calib_step00
+#BSUB -e "logs/calib_step00.%J.err"
+#BSUB -o "logs/calib_step00.%J.out"
 
 source activate calibrate
 
-python -m calib_pipeline.calib_step00 "$ARRAY_IDX"
+python -m calib_pipeline.calib_step00 \
+    --gene BRCA1 \
+    --predictor REVEL \
+    --prior 0.12 \
+    --outdir /path/to/output \
+    --labeled /data/BRCA1_REVEL_labeled.txt \
+    --unlabeled /data/BRCA1_REVEL_unlabeled.txt
