@@ -10,7 +10,7 @@
 # use LSF array index as seed
 SEED=${LSB_JOBINDEX}
 
-source activate calibrate_para
+source activate calibrate
 
 python -m calib_pipeline.calib_step01 \
     --gene BRCA1 \
