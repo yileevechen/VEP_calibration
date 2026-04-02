@@ -45,7 +45,13 @@ Creates a `.pkl` simulation file per gene × predictor, including:
 Run:
 
 ```bash
-python -m calib_pipeline.calib_step00 ARRAY_IDX
+python -m calib_pipeline.calib_step00 \
+    --gene BRCA1 \
+    --predictor REVEL \
+    --prior 0.072 \
+    --outdir /path/to/output \
+    --labeled /data/BRCA1_REVEL_labeled.txt \
+    --unlabeled /data/BRCA1_REVEL_unlabeled.txt
 ```
 
 ## **Step 01 — Run Calibration (`calib_step01.py`)**
@@ -58,7 +64,12 @@ Runs all calibration methods (local + others) on the simulation data for the tar
 Run:
 
 ```bash
-python -m calib_pipeline.calib_step01 ARRAY_IDX
+python -m calib_pipeline.calib_step01 \
+    --gene BRCA1 \
+    --predictor REVEL \
+    --alpha 0.072 \
+    --base_dir /path/to/output \
+    --seed ${SEED}
 ```
 
 ## **Step 02 — Compute Metrics (`calib_step02.py`)**
@@ -74,7 +85,11 @@ Output files (e.g., ave_misests_combined.csv) are later used by Step 03 to deter
 Run:
 
 ```bash
-python -m calib_pipeline.calib_step02 ARRAY_IDX
+python -m calib_pipeline.calib_step02 \
+    --gene BRCA1 \
+    --predictor REVEL \
+    --prior 0.072 \
+    --outdir /path/to/output
 ```
 
 ## **Step 03 — Final Calibration (`calib_step03.py`)**
@@ -99,7 +114,11 @@ Uses Step 02 metrics to select the best-performing calibration method, then:
 Run:
 
 ```bash
-python -m calib_pipeline.calib_step03 ARRAY_IDX
+python -m calib_pipeline.calib_step03 \
+    --gene BRCA1 \
+    --predictor REVEL \
+    --prior 0.072 \
+    --outdir /path/to/output
 ```
 
 # ⭐ Environment
