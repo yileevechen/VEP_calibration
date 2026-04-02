@@ -598,7 +598,7 @@ def main():
         n_test = args.n_test
 
     outdir = os.path.join(
-        outdir, f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}"
+        outdir, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}"
     )
     os.makedirs(outdir, exist_ok=True)
     np.random.seed(seed)
