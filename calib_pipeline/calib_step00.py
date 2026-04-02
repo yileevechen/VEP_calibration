@@ -60,7 +60,6 @@ def run_simulation(
         gene=gene,
         predictor=predictor,
         labeled_file=labeled_path,
-        unlabeled_file=unlabeled_path,
         cfg=gb_cfg,
         make_plot=True,
     )
