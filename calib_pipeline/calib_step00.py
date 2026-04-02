@@ -103,8 +103,7 @@ def run_simulation(
             pnratio_calibrate=float(pnr),
             pnratio_test=float(pnr),
             cfg=dg_cfg,
-            labeled_file=labeled_path,
-            unlabeled_file=unlabeled_path,
+            labfn=labeled_path
         )
 
     futures = []
