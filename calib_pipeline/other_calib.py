@@ -763,14 +763,10 @@ def main():
     mono_ensemble_transformed = monopost_ensemble
 
     # -----------------------------------------------------------------
-    # Bootstrap for other methods + MonoPostNN (OOB-style)
+    # Bootstrap for other calibration methods
     # -----------------------------------------------------------------
-    B = 1000               # bootstrap reps for the "other" methods
+    B = 100               # bootstrap reps
     bst_seeds = [int(828* (b)) for b in range(B)]
-
-    # For MonoPostNN, use fewer, spaced-out seeds (heavier model)
-    B_mono = 200
-    bst_seeds_mono = [int(828* 5 * (b)) for b in range(B_mono)]
 
     with Pool(
         processes=10,
@@ -820,7 +816,7 @@ def main():
         # --- MonoPostNN OOB bootstrap ---
         start = time.time()
         tmpmonopost_outputs = pool.map(
-            run_monopost_calibration, bst_seeds_mono
+            run_monopost_calibration, bst_seeds
         )
         print(f"[MonoPostNN bootstrap] done in {time.time() - start:.2f} sec")
 
