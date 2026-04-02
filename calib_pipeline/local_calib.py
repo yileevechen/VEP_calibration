@@ -66,8 +66,11 @@ def _calibrate_model(scores, labels, pudata, alpha, win_frac, gnfrac):
 
     c = get_tavtigian_c(alpha)
     calib_boot = LocalCalibrateThresholdComputation(alpha, c, False, win_size, gnfrac, False, True)
+    B = 100               # bootstrap reps
     _, posteriors_p_bootstrap = calib_boot.get_both_bootstrapped_posteriors_parallel(
-        scores, labels, pudata, 1000, alpha, thresh
+        scores, labels, pudata, 
+        B, 
+        alpha, thresh
     )
 
     all_pathogenic = np.row_stack((posteriors_p, posteriors_p_bootstrap))
@@ -134,7 +137,7 @@ def run_local_calibration(
     seed_scaled = int(seed_raw) * 828
     tag = seed_scaled / 828.0
 
-    simdir = os.path.join(outdir_base, f"{predictor}_{gene}_{method}_Ntrain{n_calibrate}")
+    simdir = os.path.join(outdir_base, f"{gene}_{predictor}_{method}_Ntrain{n_calibrate}")
     os.makedirs(simdir, exist_ok=True)
 
     base_fname = f"{predictor}_simu_{method}{tag}"
